@@ -1,0 +1,2 @@
+# BookNotes
+thoughts and ideas
