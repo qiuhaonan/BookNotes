@@ -1,6 +1,6 @@
 ## BookNotes##
 #thoughts and ideas#
 
-###chapter 1  about linux###
-###chapter 2  about computer system###
-###chapter 3  about computer networks###
+###Note 1  about linux###
+###Note 2  about computer system###
+###Note 3  about computer networks###
