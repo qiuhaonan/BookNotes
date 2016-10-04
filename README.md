@@ -1,4 +1,6 @@
 # BookNotes
 thoughts and ideas
 
-shelby halo what heiehi
+chapter 1  about linux
+chapter 2  about computer system
+chapter 3  about computer networks
