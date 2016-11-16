@@ -153,3 +153,10 @@ Grappa的FC框架（flat-combining）：
     这是通过将代理对象的实例隐藏在C++类似智能指针的对象里面来完成的，这个对象提供指向当前combiner的指针，无论何时它检测到它应该发送请求时，就分配
     一个新的combiner并且把随后的应用指向这个combiner。
     
+    
+相关工作：
+    虽然很多注意力都集中在无锁化数据结构上，比如：Treiber Stack，Michael-Scott Queue，一个值得注意的工作已经探索了使用combining全局地缩减
+    加锁的数据结构来减少同步和热点。技巧主要是在用来做combining的结构上有区别：Fixed tree,dynamic trees（funnel 漏斗），和随机树。
+    特别是为MTA-2做的MAMA利用funnels来更好的利用针对大量并发做过优化的硬件。在另一方面，flat-combining观察到在多核系统里 层次化的方案有太多
+    中间耗费，一个实现精巧的flat 公共链表可以表现的更好。下面的工作引入了并行flat-combining，在这里多个公共链表并行的combine然后剩下的操作
+    被串行化。
