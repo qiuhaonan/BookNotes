@@ -1,5 +1,5 @@
 class RDMAContext;
-
+    functions:解决RDMA的上下文环境配置，包括设备名，配置接受和发送缓存的参数，ib端口参数，tcp缓存参数以及是否启用大页和日志记录等级等。
 class bufferptr;
 class bufferlist;
 
