@@ -1,3 +1,9 @@
+class RDMAContext;
+
+class bufferptr;
+class bufferlist;
+
+
 class Worker;
 
 class ConnectedSocket;
