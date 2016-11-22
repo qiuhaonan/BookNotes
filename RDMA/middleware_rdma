@@ -37,29 +37,35 @@ class C_submit_event : public EventCallback;
     功能：发出请求和等待，提交事件
 class C_handle_notify :public EventCallback;
     功能：发出请求
-    
 class Consumer;
     功能：对RDMAClient对象进行封装
-class RDMAClient;
-    功能：RDMA操作读取发送连接对象
-        class Reader: public EventCallback;
-            功能：请求
-class RDMAServer;
-    功能：包含ServerSocket,Inifiniband,RDMAStack,RDMAWorker，启动服务器，监听IB端口，接受client请求，关闭服务器
-class RDMAConnectedSocketImpl :public ConnectedSocketImpl;
-    功能：抽象类
-class RDMAServerSocketImpl:public ServerSocketImpl;
-    功能：抽象类
-class RDMAStack:public NetworkStack;
-    功能：
-class RDMAWorker :public Worker;
-    功能：
-class RDMADispatcher;
-    功能：
-class C_handle_cq_async :public EventCallback
-    功能：回调RDMADispatcher的处理hanle_async_event()函数
-class C_handle_cq_tx:public EventCallback;
-    功能：回调RDMAWorker的handle_tx_event()函数
+    
+RDMA层：
+    class RDMAClient;
+        功能：RDMA操作读取发送连接对象
+            class Reader: public EventCallback;
+                功能：请求
+    class RDMAServer;
+        功能：包含ServerSocket,Inifiniband,RDMAStack,RDMAWorker，启动服务器，监听IB端口，接受client请求，关闭服务器
+    class RDMAConnectedSocketImpl :public ConnectedSocketImpl;
+        功能：抽象类
+    class RDMAServerSocketImpl:public ServerSocketImpl;
+        功能：抽象类
+    class RDMAStack:public NetworkStack;
+        功能：
+    class RDMAWorker :public Worker;
+        功能：
+            嵌套类：
+            class C_handle_cq_tx:public EventCallback;
+                功能：回调RDMAWorker的handle_tx_event()函数
+    class RDMADispatcher;
+        功能：
+            嵌套类：
+            class C_handle_cq_async :public EventCallback
+                功能：回调RDMADispatcher的处理hanle_async_event()函数
+        
+
+
     
 IB层：
     设备层：
