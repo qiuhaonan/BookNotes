@@ -39,10 +39,10 @@ class C_handle_notify :public EventCallback;
     功能：发出请求
 class RDMAServer;
     功能：包含ServerSocket,Inifiniband,RDMAStack,RDMAWorker，启动服务器，监听IB端口，接受client请求，关闭服务器
-class RDMAConnectedSocketImpl;
-    功能：
+class RDMAConnectedSocketImpl :public ConnectedSocketImpl;
+    功能：抽象类
 class RDMAServerSocketImpl:public ServerSocketImpl;
-    功能：
+    功能：抽象类
 class RDMAStack:public NetworkStack;
     功能：
 class RDMAWorker :public Worker;
@@ -54,13 +54,31 @@ class C_handle_cq_async;
 class C_handle_cq_tx:public EventCallback;
     功能：
 class Port;
+    功能：封装ib_port和相关操作
 class Device;
+    功能：封装ib_device和相关操作
 class DeviceList;
+    功能：封装ib_device和相关操作
 class Infiniband;
-class MemoryManager;
-class Cluster;
-class CompletionChannel;
-class CompletionQueue;
-class QueuePair;
+    功能：对内部类对象的功能进行封装
+        class ProtectionDomain;
+            功能：持有一个ib_pd对象，实现分配ib_pd和回收操作
+        class MemoryManager;
+            功能：持有一个发送Cluster，一个接受Cluster,分配和释放大页以及注册发送和接受缓冲区
+                class Chunk;
+                    功能：持有字符缓冲区的对象，并对缓冲区进行管理，也持有ibv_mr的指针，一个mr对应一个缓冲区
+                class Cluster;
+                    功能：chunk的集合，管理已使用缓冲区和自由缓冲区。
+        class CompletionChannel;
+            功能：持有一个ibv_comp_channel对象和一个ibv_cq对象，对channel相关的操作进行封装    
+        class CompletionQueue;
+            功能：持有一个ibv_cq对象和一个ibv_comp_channel对象，对cq事件函数进行封装
+        class QueuePair;
+            功能：对QP属性和功能函数进行封装
 class Consumer;
+    功能：对RDMAClient对象进行封装
 class RDMAClient;
+    功能：RDMA操作读取发送连接对象
+        class Reader: public EventCallback;
+            功能：请求
+            
