@@ -5,20 +5,27 @@ class bufferptr;
     功能：保存缓冲区的指针，偏移量，缓冲区长度，并可以对其进行修改
 class bufferlist;
     功能：一个列表容器，用来保存缓冲区指针对象，可以增删对象
+    
 class Worker;
     功能：
-class ConnectedSocket;
-    功能：对ConnectedSocketImpl对象以及功能的封装，代表一个全双工的流对象。可以执行读取发送关闭操作。可以返回worker对象。
-class ConnectedSocketImpl;
-    功能：接口
-class ServerSocket;
-    功能：一个监听socket，等待网络连接的对象，对ServerSocketImpl对象以及功能的封装。
-class ServerSocketImpl;
-    功能：接口
 class NetworkStack;
-    功能：网络栈，包含worker，RDMAContext，配置网络栈参数和功能
-class C_drain :public EventCallback;
-    功能：
+    功能：网络栈，包含worker，RDMAContext，配置网络栈参数和功能，管理worker
+           class C_drain :public EventCallback;
+                功能：
+
+连接建立前：
+    class ServerSocket;
+        功能：一个监听socket，等待网络连接的对象，对ServerSocketImpl对象以及功能的封装。(在正式通信前用来监听和建立连接的对象，后续是ConnectedSocket)
+    class ServerSocketImpl;
+        功能：抽象类
+连接建立后：
+    class ConnectedSocket;
+        功能：对ConnectedSocketImpl对象以及功能的封装，代表一个全双工的流对象。可以执行读取发送关闭操作。可以返回worker对象。
+    class ConnectedSocketImpl;
+        功能：接口
+    
+
+
 class Spinlock;
     功能：对结构体rdma_spinlock_t的对象化和功能封装
 class Locker;
