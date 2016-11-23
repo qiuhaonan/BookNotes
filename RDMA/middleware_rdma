@@ -24,12 +24,13 @@ class NetworkStack;
     class ConnectedSocketImpl;
         功能：接口
     
-
-
-class Spinlock;
-    功能：对结构体rdma_spinlock_t的对象化和功能封装
-class Locker;
-    功能：嵌套在Spinlock里的类
+多线程同步类：
+    class Spinlock;
+        功能：对结构体rdma_spinlock_t的对象化和功能封装
+        嵌套类：
+        class Locker;
+            功能：嵌套在Spinlock里的类，将Spinlock的lock和unlock函数封装在构造函数和析构函数中，而Spinlock只负责lock的初始化和摧毁。
+        
 class NetHandler;
     功能：包含RDMAContext指针，提供网络连接connect和设置连接类型block or nonblock模式
 class EpollDriver :public EventDriver;
