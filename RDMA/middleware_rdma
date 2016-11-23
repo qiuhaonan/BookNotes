@@ -1,28 +1,34 @@
-工具类：
+
 class RDMAContext;
-    功能:解决RDMA的上下文环境配置，包括设备名，配置接受和发送缓存的参数，ib端口参数，tcp缓存参数以及是否启用大页和日志记录等级等。 
-class bufferptr;
-    功能：保存缓冲区的指针，偏移量，缓冲区长度，并可以对其进行修改
-class bufferlist;
-    功能：一个列表容器，用来保存缓冲区指针对象，可以增删对象
-    
+    功能:解决RDMA的上下文环境配置，包括设备名，配置接受和发送缓存的参数，ib端口参数，tcp缓存参数以及是否启用大页和日志记录等级等。
+
 class Worker;
-    功能：
+    功能：？？？？？？？？
 class NetworkStack;
     功能：网络栈，包含worker，RDMAContext，配置网络栈参数和功能，管理worker
            class C_drain :public EventCallback;
                 功能：
 
+class NetHandler;
+    功能：包含RDMAContext指针，提供网络连接connect和设置连接类型block or nonblock模式
+    
+缓冲区管理类：
+    class bufferptr;
+        功能：保存缓冲区的指针，偏移量，缓冲区长度，并可以对其进行修改
+    class bufferlist;
+        功能：一个列表容器，用来保存缓冲区指针对象，可以增删对象
+    
 连接建立前：
     class ServerSocket;
         功能：一个监听socket，等待网络连接的对象，对ServerSocketImpl对象以及功能的封装。(在正式通信前用来监听和建立连接的对象，后续是ConnectedSocket)
     class ServerSocketImpl;
         功能：抽象类
+        
 连接建立后：
     class ConnectedSocket;
         功能：对ConnectedSocketImpl对象以及功能的封装，代表一个全双工的流对象。可以执行读取发送关闭操作。可以返回worker对象。
     class ConnectedSocketImpl;
-        功能：接口
+        功能：抽象类
     
 多线程同步类：
     class Spinlock;
@@ -31,30 +37,31 @@ class NetworkStack;
         class Locker;
             功能：嵌套在Spinlock里的类，将Spinlock的lock和unlock函数封装在构造函数和析构函数中，而Spinlock只负责lock的初始化和摧毁。
         
-class NetHandler;
-    功能：包含RDMAContext指针，提供网络连接connect和设置连接类型block or nonblock模式
-class EpollDriver :public EventDriver;
-    功能：包含epoll_event结构体指针和RDMAContext指针的类对象，提供event相关的功能函数,是EventDriver的子类
-class EventCenter;
-    功能：包含文件描述符集合的对象，处理注册过的事件，包括时间事件，文件事件，关联中心结构体。
-class EventCallback;
-    功能：接口
-class EventDriver;
-    功能：对事件机制进行包装，视平台选择不同的事件机制，抽象接口。
-class C_submit_event : public EventCallback;
-    功能：发出请求和等待，提交事件
-class C_handle_notify :public EventCallback;
-    功能：发出请求
-class Consumer;
-    功能：对RDMAClient对象进行封装
+事件类：
+    class EventCallback;
+        功能：抽象类，事件回调函数类
+    class EventDriver;
+        功能：对事件机制进行包装，视平台选择不同的事件机制，抽象类。
+    class EpollDriver :public EventDriver;
+        功能：包含epoll_event结构体指针和RDMAContext指针的类对象，提供event相关的功能函数,是EventDriver的具体实现类。
+    class EventCenter;
+        功能：一个包含文件描述符集合的对象，处理注册过的事件，包括时间事件，文件事件，关联中心结构体。
+            嵌套类：
+                class C_submit_event : public EventCallback;
+                    功能：发出请求和等待，提交事件
+            class C_handle_notify :public EventCallback;
+                 功能：发出请求
     
 RDMA层：
     class RDMAClient;
         功能：RDMA操作读取发送连接对象
-            class Reader: public EventCallback;
-                功能：请求
+            嵌套类：
+                class Reader: public EventCallback;
+                    功能：封装RDMAClient的process函数
+                class Consumer;
+                    功能：对RDMAClient对象的read函数进行封装
     class RDMAServer;
-        功能：包含ServerSocket,Inifiniband,RDMAStack,RDMAWorker，启动服务器，监听IB端口，接受client请求，关闭服务器
+        功能：包含ServerSocket,Inifiniband,RDMAStack,RDMAWorker，启动服务器，监听IB端口，接受client请求，关闭服务器，是服务器类
     class RDMAConnectedSocketImpl :public ConnectedSocketImpl;
         功能：抽象类
     class RDMAServerSocketImpl:public ServerSocketImpl;
@@ -72,9 +79,6 @@ RDMA层：
             class C_handle_cq_async :public EventCallback
                 功能：回调RDMADispatcher的处理hanle_async_event()函数
         
-
-
-    
 IB层：
     设备层：
         class Port;
