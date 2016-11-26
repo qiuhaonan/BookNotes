@@ -1,0 +1,121 @@
+class port
+      Port();
+      uint16_t get_lid();
+      ibv_gid get_gid();
+      uint8_t get_port_num();
+      ibv_port_attr* get_port_attr();
+      
+class Device
+      Device();
+      ~Device();
+      const char* get_name();
+      uint16_t get_lid();
+      ibv_gid get_gid();
+      void binding_port();
+      
+class DeviceList
+      DeviceList();
+      ~DeviceList();
+      Device* get_device();
+      
+class ProtectionDomain
+      ProtectionDomain();
+      ~ProtectionDomain();
+      
+class Infiniband
+      Infiniband();
+      ~Infiniband();
+      void wire_gid_to_gid();
+      void gid_to_wire_gid();
+      
+class MemoryManager
+      MemoryManager();
+      ~MemoryManager();
+      void malloc_huge_pages();
+      void free_huge_pages();
+      void register_rx_tx();
+      void return_tx();
+      int get_send_buffers();
+      int get_channel_buffers();
+      int is_tx_chunk();
+      int is_rx_chunk();
+      
+      
+class Chunk
+      Chunk();
+      ~Chunk();
+      void set_offset();
+      size_t get_offset();
+      void set_bound();
+      void prepare_read();
+      uint32_t get_bound();
+      size_t read();
+      size_t write();
+      bool full();
+      bool over();
+      void clear();
+      void post_srq();
+      void set_owner();
+      uint64_t get_owner();
+      
+class Cluster
+      Cluster();
+      ~Cluster();
+      int add();
+      void take_back();
+      int get_buffers();
+      
+class CompletionChannel
+      CompletionChannel();
+      ~CompletionChannel();
+      int init();
+      bool get_cq_event();
+      int get_fd();
+      ibv_comp_channel* get_channel();
+      void bind_cq();
+      void ack_events();
+      
+class CompletionQueue
+      CompletionQueue();
+      ~CompletionQueue();
+      int init();
+      int poll_cq();
+      ibv_cq* get_cq();
+      int rearm_notify();
+      CompletionChannel* get_cc();
+      
+class QueuePair
+      QueuePair();
+      ~QueuePair();
+      int init();
+      uint32_t get_initial_psn();
+      uint32_t get_local_qp_number();
+      int get_remote_qp_number();
+      int get_remote_lid();
+      int get_state();
+      bool is_error();
+      ibv_qp* get_qp();
+      CompletionQueue* get_tx_cq();
+      CompletionQueue* get_rx_cq();
+      int to_dead();
+      bool is_dead();
+      QueuePair* create_queue_pair();
+      ibv_srq* create_shared_receive_queue();
+      int post_chunk();
+      int post_channel_cluster();
+      int get_tx_buffers();
+      CompletionChannel* create_comp_channel();
+      CompletionQueue* create_comp_queue();
+      uint8_t get_ib_physical_port();
+      int send_msg();
+      int recv_msg();
+      uint16_t get_lid();
+      ibv_gid get_gid();
+      MemoryManager* get_memory_manager();
+      Device* get_device();
+      int get_async_fd();
+      int recall_chunk();
+      int is_tx_chunk();
+      int is_rx_chunk();
+      static const char* wc_status_to_string();
+      static const char* qp_state_string();
