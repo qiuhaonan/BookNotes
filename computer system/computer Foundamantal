@@ -1,0 +1,9 @@
+ISA:instruction set architecture
+  1.对象是什么：data types
+  2.对象在哪：addressing mode
+  3.我能拿对象干嘛：number of operations
+  
+ISA kind：x86,x64,powerpc,PA-RISC,SPARC
+Organization of ISA implementation is microarchitecture.
+Each implematntation is an opportunity for computer designers to make different trade-offs 
+between the cost of the microprocessor and the performance that microprocessor will provide.
