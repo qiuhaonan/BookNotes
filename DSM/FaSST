@@ -98,3 +98,15 @@
         master会通过计数每个worker收到的response数量来跟踪每个worker的进度。当且仅当workers中有一个worker的RPC请求或者回应丢失了，那么
         这个worker的进度计数就会停下来，master就不会收到该worker的所有response，它也不会再次调用该worker，避免又发送新的请求。
         如果收到了所有的response，那么master就会调用它，让它发送新的请求。我们不允许worker不发送请求就把处理器让给master。
+        如果某个worker的计数经过timeout后没有改变,master就认为它丢包了.怀疑丢包时,master会kill掉机器上的这个进程(process)
+        注意到,在检测出丢包之前,一次丢包只会影响当前这个worker的进度,其他worker可以成功提交事务直到丢包被检测到.
+        这允许我们使用更大的timeout值而不会影响FaSST的可用性。
+        
+    RPCs的局限性：
+        MTU  4KB
+        FaSST限制每个协程在每次batch里对每个目的机器只能发一条message，但是这个message里可以包含多个合并的requests
+        这么做是为了保持RECV队列足够小能被NIC缓存起来。
+        假设N个node   每个node有T个thread   每个thread有c个coroutine  每个coroutine发送m个消息
+        那么每个RECV队列就必须有N*c*m个RECV请求位置，那么m如果比较大就会导致NIC的缓存抖动而降低RPC的性能。
+        如果要支持更大的集群，就必须减少RECV队列的大小。可以把从本地线程发给特定远端机器的请求数量从c减少到一个小一点的值。
+        如果超出这个值，这个协程就会让出cpu。这样做比较好是因为多个协程发送请求给同一个远端机器的概率很小。
