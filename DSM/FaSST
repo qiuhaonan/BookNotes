@@ -93,3 +93,8 @@
         在FaSST里，在初始化阶段我们占据这个带有描述符的RECV queue，在这之后，这些描述符不再被CPU访问；新的RECV 以循环的方式重用这些描述符，
         并且可以单次写到被缓存的头指针里来post。
         
+    检测包丢失：
+        每个线程的master协程检测它的worker协程发出的RPC的包丢失情况。
+        master会通过计数每个worker收到的response数量来跟踪每个worker的进度。当且仅当workers中有一个worker的RPC请求或者回应丢失了，那么
+        这个worker的进度计数就会停下来，master就不会收到该worker的所有response，它也不会再次调用该worker，避免又发送新的请求。
+        如果收到了所有的response，那么master就会调用它，让它发送新的请求。我们不允许worker不发送请求就把处理器让给master。
