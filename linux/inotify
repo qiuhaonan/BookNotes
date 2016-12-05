@@ -1,0 +1,72 @@
+linux监视文件接口---inotify，监控文件的移动、读取、写入或删除操作。
+#include<sys/inotify.h>
+int inotify)init1(int flags);
+flags:IN_CLOEXEC
+      IN_NONBLOCK
+error:EMFILE
+      ENFILE
+      ENOMEM
+      
+inotify 可以监视文件和目录，监视目录时，inotify会报告目录本身和该目录下的所有文件事件，但监视不是递归的。
+
+int inotify_add_watch(int fd,const char *path,uint32_t mask);
+errno:EACCES
+      EBADF
+      EFAULT
+      EINVAL
+      ENOMEM
+      ENOSPC
+mask:IN_ACCESS
+     IN_MODIFY
+     IN_ATTRIB
+     IN_CLOSE_WRITE
+     IN_CLOSE_NOWRITE
+     IN_OPEN
+     IN_MOVED_FROM
+     IN_MOVED_TO
+     IN_CREATE
+     IN_DELETE
+     IN_DELETE_SELF
+     IN_MOVE_SELF
+     IN_ALL_EVENTS
+     IN_CLOSE
+     IN_MOVE
+     
+struct inotify_event
+{
+    int wd;
+    uint32_t mask;
+    uint32_t cookie;
+    uint32_t len;
+    char name[];
+};
+
+高级inotify事件
+IN_IGNORED
+IN_ISDIR
+IN_Q_OVERFLOW
+IN_UNMOUNT
+掩码是未处理事件的位掩码，不能使用直接等价测试来检查事件，而应该进行按位测试。
+
+关联“移动”事件
+将两个监视描述符的cookie设为相同的唯一值即可。
+
+
+高级监视选项：
+        IN_DONT_FOLLOW  不监视符号链接 
+        IN_MASK_ADD  更新mask
+        IN_ONESHOT  单触发
+        IN_ONLYDIR  只监视目录
+
+删除inotify监视
+  int inotify_rm_watch(int fd,uint32_t wd);
+  从inotify实例fd中删除由监视描述符wd指向的监视，并返回0
+  
+获取事件队列的大小
+  在inotify实例文件描述符上执行ioctl来获取
+  unsigned int queue_len;
+  int ret;
+  ret=ioctl(fd,FIONREAD,&queue_len);
+  if(ret<0)
+    perror("ioctl");
+  else printf("%u bytes pending in queue\n",queue_len);
