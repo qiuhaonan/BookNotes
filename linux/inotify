@@ -70,3 +70,9 @@ IN_UNMOUNT
   if(ret<0)
     perror("ioctl");
   else printf("%u bytes pending in queue\n",queue_len);
+
+销毁inotify实例
+int ret;
+ret=close(fd);
+if(ret==-1)
+      perror("close");
