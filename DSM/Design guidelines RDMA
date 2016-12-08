@@ -34,4 +34,13 @@ RDMA WQEs：
     这个消息可以包含：1.新的WQE 或者 2.对新的WQE的引用
     第一种情况下，WQE通过64字节 写合并的 MMIOs来传输。(WQE-by-MMIOs)(BlueFrame)(PIO)
     第二种情况下，NIC通过一次或多次DMA来读WQE。(Doorbell)(Doorbell)(SDMA)
-    
+    WQE-by-MMIOs方法是为低延迟做优化，通常是默认的方法。
+    两种优化可以通过减少MMIOs来改善性能：
+      1.Doorbell batching：应用一次发出多个WQEs到一个QP，它可以使用一次Doorbell MMIO来做一次batch
+      2.WQE shrinking：减少被一个WQE使用的缓存行的数量可以大大地改善吞吐量。
+      
+  减少NIC发起的DMAs：
+    减少DMA数量可以节省NIC的处理能力和PCIe的带宽，改善RDMA的吞吐量。
+    注意到上面的batching优化增加了一次DMA读，但是避免了多次MMIOs，这通常是一个好的折中。
+    已知的用来减少NIC发起的DMAs包括unsignaled verbs来减少完成的DMA写（CQE）和负载内联来避免负载DMA读（inline data）。
+    batching和shrinking也可以用来优化DMA次数。
