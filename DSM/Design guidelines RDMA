@@ -1,0 +1,37 @@
+强调 底层细节比如 独立的PCIe事务和NIC结构
+在RDMA能力和应用程序之间找到高效匹配
+
+
+PCI Express
+PCIe是一个层次化协议，每一层的头部会增加中间耗费，这对理解效率很重要。
+RDMA操作会产生3种类型的PCIe事务层报文：读请求，写请求和读完成，没有对一次写的事务层反应。
+
+MMIO writes VS DMA reads：
+两种从CPU到PCIe设备传输数据的方法
+CPU写到映射设备内存来初始化PCIe写。为了避免每个存储指令都产生一个PCIe写，CPU使用了一个叫做 写结合 的优化方法，它把存储的数据
+合并来生成cache行大小的PCIe事务。
+带有DMA引擎的PCIe设备可以使用DMA从DRAM中读取数据。DMA读不限制于缓存行大小，但是比CPU的读完成合并大小(Crc)大得多的一个读的response被
+切分成多个完成。Crc是128字节在我们使用的intel cpu设备上。一次DMA读总是比相同大小的MMIO使用更少的host-to-device PCIe带宽。
+
+
+PCIe计数器：
+  我们的贡献主要依赖于理解在NIC和CPU之间的PCIe交互。我们的分析主要使用用于DMA读的计数和DMA写的计数。
+  
+RDMAverbs和传输类型
+  一旦完成一个verb，请求者(发起一个verb的一方)的NIC选择性地通过把一个CQE DMA到和这个QP关联的CQ中来发出完成信号。
+  这两种类型的verbs是内存verbs和消息verbs。
+  内存verbs包括RDMA读，写和原子操作。
+  消息verbs包括send和recv。这两个操作会牵涉到responder的CPU：send的负载会被responder的cpu post的recv里指定的地址上。
+  
+RDMA WQEs：
+  为了初始化RDMA操作，在requster一边的用户模式NIC网卡在host memory创建WQE，通常，WQE是在预分配的连续内存区域里创建的，每个WQE
+  是独立缓存对齐的。
+  首先，假设NIC是基于PCIe的设备，就是说NIC并不集成在芯片上。其次，假设NIC内部使用多个处理单元来完成并行化。
+  为了讨论使用下面的优化对CPU和PCIe的影响，我们认为从CPU到NIC传输N个D字节大小的WQEs
+  减少CPU发起的MMIO:
+    如果减少MMIO的数量或者替换成节省CPU和带宽的DMA，CPU效率和RDMA吞吐量都会得到改善。
+    CPU通过MMIO给NIC发送消息来初始化网卡操作。
+    这个消息可以包含：1.新的WQE 或者 2.对新的WQE的引用
+    第一种情况下，WQE通过64字节 写合并的 MMIOs来传输。(WQE-by-MMIOs)(BlueFrame)(PIO)
+    第二种情况下，NIC通过一次或多次DMA来读WQE。(Doorbell)(Doorbell)(SDMA)
+    
