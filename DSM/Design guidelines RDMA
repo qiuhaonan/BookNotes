@@ -44,3 +44,11 @@ RDMA WQEs：
     注意到上面的batching优化增加了一次DMA读，但是避免了多次MMIOs，这通常是一个好的折中。
     已知的用来减少NIC发起的DMAs包括unsignaled verbs来减少完成的DMA写（CQE）和负载内联来避免负载DMA读（inline data）。
     batching和shrinking也可以用来优化DMA次数。
+    NIC必须对每一个完成的RECV DMA一个CQE。和其他种类那种只提醒完成并且是不重要的的verbs不一样，RECV的CQEs包含重要的元数据，
+    比如收到数据的大小。NIC通常会为负载和完成产生两个分离的DMA，分别把他们写到应用程序享有的内存和驱动享有的内存里。
+    我们假设对应一个RECV的SEND携带X字节的负载。
+    Inline RECV：
+      如果X很小，NIC把负载封装进CQE里，这个CQE后来会被驱动复制到应用程序指定的地址空间里去。
+    Header-only RECV：
+      如果X=0，就是没有负载的情况下，在接收方就不会产生负载的DMA。报文的头部里的一些信息被包含在DMA发出的CQE中，可以用来实现应用协议。
+      那么就只会产生一次DMA而不是两次DMA
