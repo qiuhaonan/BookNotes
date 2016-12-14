@@ -1,0 +1,15 @@
+  对于每个HCA源端口，channel interface 应该维持一个包含源端口有效GIDs的GID表
+  (意思是每个端口可以有多个GID以实现复用，就像每个网卡可以有多个TCP/IP地址一样？)
+  每个地址向量包含一个源GID索引，源GID索引指定源GID表中一个索引。
+  被源GID索引引用的条目定义和这个地址向量相关的源GID。
+  对于每个GID表，表中的第一个条目应该包含GID索引0的只读常量值。
+  在本地寻址时，IBA启用每个HCA端口的多LIDs。
+  
+  对于有连接的QPs，目的地址应该存储在QP context中
+  对于RD服务（如果有的话），目的地址应该存储在EE context中。
+  如果支持raw datagram service，那么对于raw QPs来说，目的地址应该提供给每个独立的Work Request。
+  
+  对于UD QPs来说，结点的目的地址应该包含在一个Address Handle中，并且每个独立的Work Request应该
+  引用一个Address Handle。
+  
+  
