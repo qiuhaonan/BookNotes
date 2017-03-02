@@ -80,3 +80,13 @@ RDMA WQEs：
     RECV慢是因为CQE的DMA，否则和WRITE一样快
     线性计数器需要用到fetch-and-add操作
     batching只限于数据报传输
+    
+    -------------------------------------------------------------
+    为了避免每条存储指令CPU都产生一次PCIE写，CPU使用write-combining来产生cache-line-size的数据。
+    DMA的读不严格限制数据规模。
+    链路层做了拥塞控制和重传机制，做到几乎没有丢包的现象。
+    CPU和外设之间的数据传输有两种：
+      一种是MMIO，另一种是DMA
+      MMIO是CPU发起的操作，可以传实际数据，也可以传数据的地址，然后由外设通过DMA来获取数据。
+      减少DMA的次数可以使用unsignaled verbs但RECV必须有CQE，使用payload inline
+      DMA可以有batch，doorbel。
