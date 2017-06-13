@@ -1,0 +1,76 @@
+RDMA添加ud支持
+＃update　2017-5-22
+添加ud qp的初始化接口：完成建立ud qp并转换到rts状态的过程
+添加ud qp的逻辑连接获取接口:完成获取映射到ud qp的逻辑链接，并生成相应的事件fd与逻辑链接绑定，返回此fd给用户作为发送时的一个接口。
+添加ud qp的交换qp链接信息的接口：完成
+
+
+
+RDMA添加read/write支持
+#update 2017-6-7
+困难所在：
+	首先read，write在使用前需要知道对方内存地址信息，包括remote_addr,rkey两个字段
+	在真正进行rdma read/write之前来获取此信息
+	拿到此信息之后再进行read/write，此后发起方通知对方操作已经完成
+	write:
+        预留足够的内存来为发起方服务write,（Connection本身的内存管理是统一化的，所有收到的数据都放在inData中，发出的数据都放在outData中）。
+        如果申请的内存过多，导致当前预留的内存块中许多小块的rkey不一样，则每次通信还需要对这些小内存块的rkey进行区分。
+        数据序列化问题，对大量数据进行格式化然后序列化，在接受端再进行反序列化和格式化读取数据，最后在处理发送数据时需要对多块内存进行区分。
+    	在处理逻辑上,服务器怎么接收客户端的通知，是通过send/recv来进行通知，但是这需要中间件做语义层的解析和处理再加上事件中心机制。
+		
+添加：
+1.Connection.h:
+	MemberAttribute:
+		optype operation;
+		vector<MemoryInfo> localInfoVec;
+		vector<MemoryInfo> remoteInfoVec;
+        vector<userMemInfo> userMemInfoVec;管理read时产生的用户注册内存
+	MemberFunction:
+		read , write，GetMemInfo,PutMemInfo,notifyRemote接口
+        将原本的get_wr()函数内部拆分成getOutWr(),getInWr()和setUdWr()三个函数，分别处理send/write 和 read的情况
+        将PutMemInfo和GetMemInfo内部拆分成sendMemReq,recvMemReq,sendMemRsp,recvMemRsp四个函数
+        添加registerUserMem(),deregisterUserMem()接口函数，供read使用
+        加入selfWakeUp()函数用于Read函数处理数据达到时唤醒
+        分解sendMemRsp处理流程，添加collectingReadInfo,collectWriteInfo接口
+  Connection.cc：
+	MemberFunction：
+		read , write实现
+		GetMemInfo,PutMemInfo,notifyRemote 实现
+		send , recv , sendTo , recvForm , read, write设置operation类型
+		get_wr添加对operation进行switch判断，设置send/rdma操作的操作属性
+        添加getOutWr,getInwr,setUdWr,sendMemReq,recvMemReq,sendMemRsp,recvMemRsp,selfWakeUp函数实现
+	    添加registerUserMem(),deregisterUserMem()实现
+
+2.RaasContext.h:
+	MemberFunction:
+		read , write 接口
+  RaasContext.cc:
+	MemberFunction:
+		read , write 实现
+3.TaskTracker.h:
+	MemberFuntion:
+		read , write 接口
+  TaskTracker.cc:
+	MemberFunction:
+		read , write 实现
+4.RNIC.h:
+	struct MemoryInfo{
+		uint64_t remote_addr;
+		uint32_t rkey;
+        uint32_t len;
+	};
+	static const uint32_t MEMINFO_LEN=sizeof("0000000000000000:00000000:00000000");
+5.Memory.h
+	MemberAttribute:
+		const uint32_t rkey;
+	MemberFunction:
+		初始化参数列表中加入rkey初始化
+        void* const getAddr();
+        const uint32_t getRkey();
+6.Memory.cc
+	Cluster构造函数中构造pages时传入rkey参数
+7.Poller.cc
+    MemberFunction:
+        void run函数中在处理IBV_WC_RECV时加入异步唤醒Connection操作，提醒链接数据到来。
+        void run函数中添加处理IBV_WC_READ IBV_WC_WRITE的处理分支
+        自动调用Connection里的notifyRemote()函数发送控制信息
