@@ -1,0 +1,19 @@
+1.ERROR NO:0x5
+  解释：表示QP转成错误状态，而workrequest仍然在队列中还没处理。
+  分析：QP先转到错误状态，后面的workrequest就都无法正常工作
+       a.QP为什么会转成错误状态？
+         问题一定出在属性设置上，要么是QP属性，要么是WR属性不对。
+         QP属性包括init状态属性，rtr属性，rts属性。
+         WR属性包括opcode，send_flags,wr属性下的rdma/atomic/ud属性
+         以上两种属性必须相适应才行
+       b.这两种属性怎么个适应法？
+         在RC WRITE情况下：
+              QP属性：
+                    init：qp_access_flags-->IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_REMOTE_READ | IBV_ACCESS_ATOMIC
+                    rtr : max_dest_rd_atomic,ah_attr.is_global,ah_attr.grh.dgid,ah_attr.port_num
+                    rts : max_rd_atomic
+              WR属性:
+                    opcode:IBV_WR_RDMA_WRITE | ...
+                    send_flags:IBV_SEND_SIGNALED
+                    wr.rdma.remote_addr
+                    wr.rdma.rkey
