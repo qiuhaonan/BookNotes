@@ -1,9 +1,0 @@
-Actually,the electronic circuits in the computer differentiate voltages close to 0 from voltages far from 0.
-To get useful work done by the computer ,it is necessary to be able to identify uniquely a large number of distinct values.
-In gerneral,with k bits,we can distinguish at most 2^k distinct items.
-We say a particular representation is a datatype if there are operations in the computer that can operate on information that is encoded in that representation.
-Unsigened integers also provide a means for identifying different memory locations in the computer.
-We can represent unsigned integers as strings of binary digits.
-
-It's ofen useful to describe a complex system made up of several units,each of which is individually and independently busy or available.
-
