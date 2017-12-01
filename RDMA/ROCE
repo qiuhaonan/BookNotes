@@ -1,0 +1,20 @@
+1.RoCE 链路层
+  IB架构中Raw service不使用IB提供的传输服务，因此基本规范里面把raw packets定义成一个在LRH的Link Next Header域中msb为0的packet
+  因此基本规范里面定义的Raw service实际上就是链路层提供的服务定义的
+  因为RoCE不使用IB定义的链路层，因此也就没有Raw service的概念
+2.RoCE 传输层
+  因为没有定义链路层，因此和LRH相关的这部分的参数也就不再适用
+  同样也不支持raw IP服务
+3.传输层头部检查
+  基本规范要求传输层要执行一套全面的各种头部域检查，这些检查是为了确保packet交付到正确的结点和对应的QP上。
+  RoCE packets总是要求包含一个GRH头部，不再包含LRH头部
+4.回环
+  两种方式可以实现回环
+  sgid==dgid
+  loopback gid 0:0:0:0:0:0:0:1，但是这个是为raw service预留的，RoCE中没有定义，因此用不了
+  
+
+
+参考文献：
+1.Annex_RoCE_final.pdf
+  http://www.infinibandta.org/content/pages.php?pg=technology_public_specification
