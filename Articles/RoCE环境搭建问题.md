@@ -28,16 +28,14 @@
         + ConnectX-5网卡默认是RoCEv2
         + 为每个网卡设定静态局域网地址 <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/IP.png width="100%">
         + 检查设备的gid，看是否有RoCEv2的gid <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/gids.png width="100%">
-    + 服务器ssh免密登录
-      <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/ssh-config.png width="100%">
+    + 服务器ssh免密登 <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/ssh-config.png width="100%">
 
 ## 3.分布式实验
 + 软件部署
     + 在所有结点上部署分布式程序
     + 检查程序使用的硬件参数与所在结点的环境是否一致
 
-+ 脚本编写
-  <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/scripts.png width="100%">
++ 脚本编写 <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/scripts.png width="100%">
 
 ## 4.总结
 + ConnectX-3 Pro的速率是40Gb，而交换机的端口速率默认是100Gb，因此，需要手动在交换机端口上进行降速，否则交换机不识别该网卡，注意，每次交换机重启都需要检查该设置
