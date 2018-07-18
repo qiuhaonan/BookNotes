@@ -24,13 +24,10 @@
         + 通过命令行或者WebCLI界面将接有网卡的端口统一降速为40GbE
         + 通过命令行或者WebCLI界面在上述端口中均启用PFC功能
     + 网卡
-        + 在装有ConnectX-3 Pro的机器上，设置网卡的RoCE模式为RoCEv2
-	  <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/NIC.png width="100%">
+        + 在装有ConnectX-3 Pro的机器上，设置网卡的RoCE模式为RoCEv2 <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/NIC.png width="100%">
         + ConnectX-5网卡默认是RoCEv2
-        + 为每个网卡设定静态局域网地址
-	  <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/IP.png width="100%">
-        + 检查设备的gid，看是否有RoCEv2的gid
-	  <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/gids.png width="100%">
+        + 为每个网卡设定静态局域网地址 <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/IP.png width="100%">
+        + 检查设备的gid，看是否有RoCEv2的gid <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/gids.png width="100%">
     + 服务器ssh免密登录
       <img src=https://github.com/qiuhaonan/BookNotes/blob/master/reffig/20180718/ssh-config.png width="100%">
 
