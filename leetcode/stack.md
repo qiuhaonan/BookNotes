@@ -10,6 +10,8 @@
 - 保存历史路径，方便状态返回
 - 解决嵌套解析问题
 - 模拟递归调用
+- 保存未解析完的部分数据，遇到解析尾部时出栈
+- 保存局部最优的值，遇到新的最优值则迭代出栈更新
 
 
 ## 2. 实例
@@ -341,7 +343,7 @@ public:
 - Input: a sequence of n intergers
 - Output: true or false
 - Example: [1,2,3,4], return false
-- Analysis: 
+- Analysis: 题目重点找的是132中的32，根据32的属性，可以从后向前看，只要遇到前面的比后面的大，那么就有可能存在这个模式，剩余的只需要找到13模式即可。其实再把这个模式给揭开一层，它的本质就是找一个有序序列a<b<c，只不过b的索引比c大，那么就保存c的候选序列，遇到新的候选值时，把c序列末尾的分配给b，然后只要遇到比b小的数就可以做出判断了。
 - Solution:
 ```cpp
 class Solution {
@@ -366,8 +368,8 @@ public:
 - Input: a circular array
 - Output: the next greater number for every element
 - Example: [1,2,1], return [2,-1,2]
-- Analysis:
-- Solution:
+- Analysis: 思想类似于2.11
+- Solution: 暴力解法
 ```cpp
 class Solution {
 public:
@@ -398,7 +400,7 @@ public:
 - Input: an array asteroids of integers
 - Output: an array of rest asteroids
 - Example: [5,10,-5], return [5,10]
-- Analysis:
+- Analysis: 题目要求判断存活下来的卫星。根据规则可以从左往右判断，每次右边的卫星只可能迭代地和左边第一个发生碰撞，因此只要完成迭代检查碰撞可能性即可。
 - Solution:
 ```cpp
 class Solution {
@@ -444,7 +446,7 @@ public:
 - Input: a list of daily temperatures
 - Output: a list of how many days you would have to wait until a warmer temperature
 - Example: [73, 74, 75, 71, 69, 72, 76, 73], return [1, 1, 4, 2, 1, 1, 0, 0]
-- Analysis:
+- Analysis: 题目要求找到第一个比当前温度高的日子，也就是从下一天开始判断是否比当前温度更高，如果是就结束，否则继续向后迭代。这中间有一个高低顺序的维持，比如第二天的温度不高于第一天的温度，而第三天的温度高于第二天的温度，结果第三天的温度也一定高于第一天的温度。也就是说可以根据后面的结果反过来推出前面的结果。那么，就可以使用栈来保存之前尚未给出判断结果的数据，然后根据当前的结果逆向对比栈中的数据。另一种思路是：既然要站在当前向后看才能得到结果，那么反过来从后向前看就能直接知道结果，即每一天跟后一天或者嵌套向后跟比后一天大的所有天进行比较。
 - Solution:
 ```cpp
 class Solution {
@@ -471,7 +473,7 @@ public:
 - Input: a string
 - Output: a score
 - Example: "()", return 1
-- Analysis:
+- Analysis: 括号匹配的增强，加入括号匹配时的得分机制
 - Solution:
 ```cpp
 class Solution {
