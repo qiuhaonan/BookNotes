@@ -795,3 +795,9 @@
 - **In code with known types or support for move semantics, there is no need for assumptions.**
 - **Perfect forwarding fails when template type deduction fails or when it deduces the wrong type.**
 - **The kinds of arguments that lead to perfect forwarding failure are braced initializers, null pointers expressed as 0 or NULL, declaration-only integral const static data members, template and overloaded function names, and bit fields.**
+
+## 10. Additional References
+- [std::move和移动语义到底在干什么](https://www.zhihu.com/question/50652989)
+- [c++11的右值引用有什么好处](https://www.zhihu.com/question/22111546/answer/30801982) 
+- [移动语义和完美转发](http://shaoyuan1943.github.io/2016/03/26/explain-move-forward/)
+- [返回值优化和std::move](https://www.ibm.com/developerworks/community/blogs/5894415f-be62-4bc0-81c5-3956e82276f3/entry/RVO_V_S_std_move?lang=en)
