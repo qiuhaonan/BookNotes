@@ -91,7 +91,7 @@
         //return type has sizeof(Investment*)+least sizeof(function pointer)
         ```
 
-- **std::unique\_ptr** 有两种形式，一种是针对单个对象( **std::unique\_ptr<T>** )，另一种是针对数组( **std::unique\_ptr<T[]>** )，针对单个对象时，不能使用  **** 运算，而针对数组对象时不能使用 **\***  和 **->** 运算
+- **std::unique\_ptr** 有两种形式，一种是针对单个对象( **std::unique\_ptr<T>** )，另一种是针对数组( **std::unique\_ptr<T[]>** )，针对单个对象时，不能使用  **\*** 运算，而针对数组对象时不能使用 **\***  和 **->** 运算
 - **std::unique\_ptr** 可以转换到 **std::shared\_ptr** ，但是反过来不可以  
 
 ## 3. Use std::shared\_ptr for shared-ownership resource management
@@ -106,7 +106,7 @@
 - 构造 **std::shared\_ptr** 在移动构造情况下，不会对引用计数进行修改
 -  **std::shared\_ptr** 的自定义析构器和 **std::unique\_ptr** 自定义的析构器区别
     - 对于 **std::unique\_ptr** ，自定义析构器属于 **std::unique\_ptr** 的一部分
-    - 对于 **std::shared\_ptr** ，自定义析构器不属于 **std::unique\_ptr** 的一部分
+    - 对于 **std::shared\_ptr** ，自定义析构器不属于 **std::shared\_ptr** 的一部分
         ```c++
         auto loggingDel = [](Widget* pw) {
             makeLogEntry(pw);
@@ -203,7 +203,7 @@
     ```
 
 - 由 **shared\_ptr** 管理的对象控制块中的虚函数机制通常只会使用一次，那就是在销毁对象的时候
--  **shared\_ptr** 不支持数组管理，因此也就没有  **** 运算
+-  **shared\_ptr** 不支持数组管理，因此也就没有  **\*** 运算
 
 ## 4. Use std::weak\_ptr for std::shared\_ptr-like pointers that can dangle
 
@@ -221,8 +221,8 @@
         ...
     ```
 
-- 但是通常在测试是否悬空和使用之间可能会出现竞态条件，此时会出现未定义行为，此时需要保证两者作为一体的原子性          std::shared\_ptr<Widget> spw1 = wpw.lock();- 另一种形式是：使用 \*\*std::weak\_ptr\*\* 作为 \*\*std::shared\_ptr\*\* 构造函数的参数，如果 \*\*std::weak\_ptr\*\* 已经 \*\*expired\*\* ，那么就会抛出一个异常
-    - 一种形式是：通过 **std::weak\_ptr::lock** 来返回一个 **std::shared\_ptr** ，如果 **std::weak\_ptr** 已经 **expired** ，那么将会返回一个 **null** 的 **std::shared\_ptr**
+- 但是通常在测试是否悬空和使用之间可能会出现竞态条件，此时会出现未定义行为，此时需要保证两者作为一体的原子性          std::shared\_ptr<Widget> spw1 = wpw.lock();- 另一种形式是：使用**std::weak\_ptr** 作为**std::shared\_ptr** 构造函数的参数，如果 **std::weak\_ptr** 已经 **expired**，那么就会抛出一个异常
+    - 一种形式是：通过 **std::weak\_ptr::lock** 来返回一个**std::shared\_ptr**，如果 **std::weak\_ptr** 已经 **expired** ，那么将会返回一个 **null** 的 **std::shared\_ptr**
 
         ```c++
         std::shared_ptr<Widget> spw2(wpw);
@@ -417,7 +417,7 @@
     Widget w; // error!!!!!!
     ```
 
-- 原因是：上面改写为只能指针的代码中，没有对 **Widget** 进行析构，因此编译器会自动生成析构函数，而在析构函数中，编译器会插入调用 **std::unqiue\_ptr** 的析构函数代码，默认的析构器是 **delete** ，然而通常默认 **delete** 会使用 **static\_assert** 来判断原始指针是否指向的是一个不完全类型，如果是就会报错，而且通常看到的错误是在构造 **Widget** 对象那一行，因为源码是显式的创建一个对象而隐式的销毁了该对象。为了解决这个问题，我们需要在析构函数调用时，确保 **Widget::pImpl** 是一个完整的类型，也就是当 **Widget** 的 **Impl** 在 **Widget.cpp** 中定义之后，类型是完整的，关键就是让编译器在看到 **Widget** 的析构函数之前先看到 **Widget::Impl** 的定义
+- 原因是：上面改写为智能指针的代码中，没有对 **Widget** 进行析构，因此编译器会自动生成析构函数，而在析构函数中，编译器会插入调用 **std::unqiue\_ptr** 的析构函数代码，默认的析构器是 **delete** ，然而通常默认 **delete** 会使用 **static\_assert** 来判断原始指针是否指向的是一个不完全类型，如果是就会报错，而且通常看到的错误是在构造 **Widget** 对象那一行，因为源码是显式的创建一个对象而隐式的销毁了该对象。为了解决这个问题，我们需要在析构函数调用时，确保 **Widget::pImpl** 是一个完整的类型，也就是当 **Widget** 的 **Impl** 在 **Widget.cpp** 中定义之后，类型是完整的，关键就是让编译器在看到 **Widget** 的析构函数之前先看到 **Widget::Impl** 的定义
 
     ```c++
     # widget.h
