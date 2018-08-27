@@ -362,3 +362,6 @@
 - **Use decltype on auto&& parameters to std::forward them**
 - **Lambdas are more readable, more expressive, and may be more efficient than using std::bind**
 - **In C++11 only, std::bind may be useful for implementing move capture or for binding objects with templatized function call operators.**
+
+## 6. Additional Reference
+- [实例解读c++11中的lambda表达式](https://www.devbean.net/2012/05/cpp11-lambda/)
