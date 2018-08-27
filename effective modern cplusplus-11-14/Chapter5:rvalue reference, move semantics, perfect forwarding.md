@@ -128,7 +128,7 @@
     }
 
     Widget w;
-    logAndProcess(w); // error, 左值不能绑定到右值上去
+    logAndProcess(w); 
     logAndProcess(std::move(w));
     ```
 
