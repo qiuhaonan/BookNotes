@@ -471,3 +471,18 @@
 - **The Pimpl Idiom decreases build times by reducing compilation dependencies between class clients and class implementations**
 - **For std::unique\_ptr pImpl pointers, declare special member functions in the class header, but implement them in the implementation file. Do this even if the default function implementations are acceptable.**
 - **The above advice applies to std::unique\_ptr, but not to std::shared\_ptr**
+
+## 8.Questions and Answers
+1. 为什么要使用智能指针？
+- 因为原始指针不能暗示指向的对象是单个对象还是一个数组，也不能暗示在什么时间点以什么样的方式来释放该对象，更不能保证不会重复释放该对象。因此，需要一种能够替我们自动管理内存的智能类，就是智能指针。
+
+2. 智能指针的存储方式是什么样的？
+- 对于std::unique_ptr来说，默认情况下只会保存原始指针，所以内存占用和原始指针一样大，仅当在构造时传入了自定义析构函数指针时，std::unique_ptr会额外保存自定义析构函数指针，所占内存是原始指针的两倍。而当传入了自定义析构器是函数对象时，所占内存大小取决于函数对象内存存储多少状态。
+- 对于std::shared_ptr来说，直接占用的内存是原始指针大小的两倍，因为需要保存一个指向控制块的指针，该控制块内保存有共享引用计数，弱引用计数，自定义析构器，自定义分配器和虚函数等等。
+- 对于std::weak_ptr来说，由于它和std::shared_ptr指向同一个对象，使用相同的控制块，因此，所占内存和std::shared_ptr一样，直接占用的内存是原始指针大小的两倍。
+
+3. 论述std::unique_ptr、std::shared_ptr和std::weak_ptr三者之间的关系？
+- 首先，std::unique_ptr用于独占式保存和访问指针，而std::shared_ptr用于保存和访问共享的资源，使用场景不一样，其次使用std::weak_ptr是为了解决std::shared_ptr的循环引用导致的内存泄露问题和std::shared_ptr无法判断对象是否已经释放的问题，std::weak_ptr通过检查引用计数是否为0来判断对象是否已经被析构。通常在判断对象释放和使用之间存在同步问题，因为检查判断结果和使用是两个分离的动作，因此实际使用时可能对象已经被释放了，因此，为了解决该问题，std::weak_ptr通过lock函数来生成一个新的shared_ptr来暂时锁定共享对象不被销毁，保证可以正常访问。
+
+4.怎么解决std::shared_ptr潜在的重复绑定导致的多次释放相同资源问题？
+- 尽量避免使用原始指针来构造智能指针，使用std::make_shared函数来构造，如果要使用原始指针来构造的话，一般在申请资源后立即将原始指针传递给智能指针，然后通过该智能指针来生成其他的智能指针，保证同一个资源只被共享在一个智能指针的控制块中。如果共享的指针是this指针，可以让类继承自标准库中的std::enabled_shared_from_this类，在使用std::shared_ptr的地方使用shared_from_this()函数来代替this，并且将构造函数声明为private，然后通过调用工厂函数来创建对象并返回std::shared_ptr，因为shared_from_this要求必须提前存在一个std::shared_ptr对象的控制块，否则就是未定义行为。
