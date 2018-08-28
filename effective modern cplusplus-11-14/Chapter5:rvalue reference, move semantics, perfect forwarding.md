@@ -796,7 +796,28 @@
 - **Perfect forwarding fails when template type deduction fails or when it deduces the wrong type.**
 - **The kinds of arguments that lead to perfect forwarding failure are braced initializers, null pointers expressed as 0 or NULL, declaration-only integral const static data members, template and overloaded function names, and bit fields.**
 
-## 10. Additional References
+## 10. Questions and Answers
+1.什么是左值、右值？
+- 在**c/c++** 中，左值代表存储在计算机内存的对象，可以寻址，相当于地址值， 而右值代表的为真实值，可读，即数据值，但右值是不具名的，也就是不能寻址。对于基础类型，右值是不可被修改的，也不能被**const**, **volatile**所修饰。对于自定义的类型，右值允许通过成员函数来修改自身。
+
+2.什么是左值引用、右值引用和通用引用？
+- 左值引用就是对对象的引用，右值引用是是对右值的引用，即引用临时的、即将被销毁的值，右值引用会自动接管所引用的对象的资源。通用引用是模板函数和自动类型推导中使用的概念，它有条件的转化为左值引用或右值引用。
+
+3.右值引用的特点有哪些？
+- 通过右值引用的声明，右值又“重获新生”，其生命周期与右值引用类型变量的生命周期一样长，只要该变量还活着，该右值临时量将会一直存活下去
+- 右值引用独立于左值和右值。意思是右值引用类型的变量可能是左值也可能是右值
+- **T&& t**在发生自动类型推断的时候，它是未定的引用类型（**universal references**），如果被一个左值初始化，它就是一个左值；如果它被一个右值初始化，它就是一个右值，它是左值还是右值取决于它的初始化
+
+4. 引用折叠是什么？会发生在哪些地方？折叠规则是什么？
+- 引用折叠是将对引用的引用转换成基本的两种引用，即左值引用和右值引用；通常发生在函数模板类型推导、**auto**自动类型推导、**decltype**返回值类型推导和**typedef/alias**别名类型推导处，由编译器处理，用户感知不到；折叠的规则是只有当所有的引用都是右值引用时，折叠后才是右值引用，否则结果就是左值引用
+
+5.通用引用有什么问题？怎么解决？
+- 在重载函数使用通用引用参数时，会造成使用了通用引用参数总是匹配函数调用问题，因为正常的解析规则中完全匹配会胜过类型提升匹配。解决方法有：更换函数名，传入**const**左值引用，传值，或者使用标签分发和模板限制方法。标签分发可以在调用重载函数时通过显式对参数类型的判断来决定实际函数调用选择。模板限制可以根据条件来启用或禁用模板匹配，进而让函数调用发生在应该发生的位置上。
+
+6.解释**std::move**和**std::forward**？什么时候会发生移动语义？
+- **std::move**无条件的把参数转换成一个右值，而**std::forward**在特定条件下把参数转换成右值。虽然**std::move**和**std::forward**都能将参数转换成右值，但是这只是提供了可以发生移动语义的环境，具体的移动语义发生在此基础上完成资源的交接，一般是赋值运算符。
+
+## 11. Additional References
 - [std::move和移动语义到底在干什么](https://www.zhihu.com/question/50652989)
 - [c++11的右值引用有什么好处](https://www.zhihu.com/question/22111546/answer/30801982) 
 - [移动语义和完美转发](http://shaoyuan1943.github.io/2016/03/26/explain-move-forward/)
