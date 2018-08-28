@@ -363,5 +363,16 @@
 - **Lambdas are more readable, more expressive, and may be more efficient than using std::bind**
 - **In C++11 only, std::bind may be useful for implementing move capture or for binding objects with templatized function call operators.**
 
-## 6. Additional Reference
+## 6. Questions and Answers
+1. 解释一下**lambda**表达式、闭包和闭包类以及它们之间的关系？
+- **lambda**表达式仅仅是一个表达式，是源码中的一部分；闭包是由一个**lambda**产生的运行时对象；闭包类是一个类类型，一个闭包可以从该闭包类中实例化。每个**lambda**表达式都会使得编译器产生一个独一无二的闭包类，一个**lambda**内的语句会变成闭包类内成员函数可执行的指令。
+
+2. **lambda**表达式的捕捉方式有哪些？需要注意哪些问题？解决方法？
+- 隐式捕捉和显式捕捉，都可以采用引用传递和值传递方式；需要注意的是**lambda**表达式与引用捕捉变量的生命周期是否一致(只能捕捉**非static**的局部变量	)，如果变量的生命周期小于**lambda**表达式的生命周期，那么就会出现悬空引用或悬空指针。解决方法有：将捕捉的变量存储到**lambda**内部的成员变量中，或者将变量转化成**非static**的局部变量。
+
+3.如果要捕捉移动变量，怎么解决？
+- 如果是**c++14**，可以使用初始化捕捉，使用**lambda**内部的成员变量来接管捕捉的移动变量；如果是**c++11**，可以使用自定义函数类来接管移动变量，或者借助**std::bind**函数来接管移动变量，并在调用**lambda**表达式时将变量传递给它。
+
+
+## 7. Additional Reference
 - [实例解读c++11中的lambda表达式](https://www.devbean.net/2012/05/cpp11-lambda/)
