@@ -1,4 +1,4 @@
-# [leetcode] Stack
+# [Leetcode] Stack
 ## 1. 概念
 栈式数据结构是基本数据结构之一，用途是
 - 保存历史数据
