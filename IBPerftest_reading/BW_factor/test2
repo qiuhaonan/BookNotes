@@ -1,0 +1,44 @@
+---------------------------------------------------------------------------------------
+Post List requested - CQ moderation will be the size of the post list
+---------------------------------------------------------------------------------------
+                    RDMA_Write Post List BW Test
+ Dual-port       : OFF		Device         : mlx5_0
+ Number of qps   : 1		Transport type : IB
+ Connection type : RC		Using SRQ      : OFF
+ TX depth        : 5
+ Post List       : 5
+ CQ Moderation   : 5
+ Mtu             : 1024[B]
+ Link type       : Ethernet
+ GID index       : 3
+ Max inline data : 0[B]
+ rdma_cm QPs	 : OFF
+ Data ex. method : Ethernet
+---------------------------------------------------------------------------------------
+ local address: LID 0000 QPN 0x2d71 PSN 0x885eee RKey 0x00de01 VAddr 0x007f898a64b000
+ GID: 00:00:00:00:00:00:00:00:00:00:255:255:10:00:00:05
+ remote address: LID 0000 QPN 0x00ca PSN 0x41b874 RKey 0x006111 VAddr 0x007f7129e62000
+ GID: 00:00:00:00:00:00:00:00:00:00:255:255:10:00:00:02
+---------------------------------------------------------------------------------------
+ #bytes     #iterations    BW peak[Gb/sec]    BW average[Gb/sec]   MsgRate[Mpps]
+ 2          5000           inf                0.025229            1.576787
+ 4          5000           inf                0.056343            1.760716
+ 8          5000             inf                0.11   		   1.763302
+ 16         5000             inf                0.22   		   1.751296
+ 32         5000             inf                0.46   		   1.781093
+ 64         5000             inf                0.86   		   1.685424
+ 128        5000             inf                1.72   		   1.680815
+ 256        5000             inf                3.42   		   1.670919
+ 512        5000             inf                6.82   		   1.665634
+ 1024       5000             inf                12.42  		   1.515520
+ 2048       5000             inf                21.91  		   1.337298
+ 4096       5000             inf                34.72  		   1.059612
+ 8192       5000             inf                45.91  		   0.700530
+ 16384      5000             inf                56.93  		   0.434360
+ 32768      5000             inf                66.97  		   0.255481
+ 65536      5000             inf                77.72  		   0.148237
+ 131072     5000             inf                84.58  		   0.080659
+ 262144     5000             inf                88.40  		   0.042154
+ 524288     5000             inf                90.44  		   0.021563
+ 1048576    5000             inf                91.50  		   0.010908
+ 2097152    5000             inf                92.00  		   0.005483
