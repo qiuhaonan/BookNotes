@@ -3222,14 +3222,9 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 			/*When the scnt < target iters and the send wrs - finished cqes < tx_depth for this QP, we continue to post wrs */
 			while ((ctx->scnt[index] < user_param->iters || user_param->test_type == DURATION) && (ctx->scnt[index] - ctx->ccnt[index]) < (user_param->tx_depth) &&
 					!((user_param->rate_limit_type == SW_RATE_LIMIT ) && is_sending_burst == 0)) {
-
-<<<<<<< HEAD
 				if (ctx->send_rcredit) {
 					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows used when verbs is SEND/RECV
-=======
-				if (ctx->send_rcredit) { // used when SEND/RECV
-					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows
->>>>>>> 5fb8ca9d9dcbe90e5b64feb16427d793dfd379f4
+
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
