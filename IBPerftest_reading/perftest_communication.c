@@ -773,6 +773,7 @@ int set_up_connection(struct pingpong_context *ctx,
 		}
 	}
 
+	/*set my dest information including the buff address for all QPs +++++++++++++++++++++++++++++*/
 	for (i = 0; i < user_param->num_of_qps; i++) {
 
 		if (user_param->dualport == ON) {

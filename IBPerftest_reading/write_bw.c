@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr," Failed to exchange data between server and clients\n");
 			return FAILURE;
 		}
-
+		/* Print remote machine QP information */
 		ctx_print_pingpong_data(&rem_dest[i],&user_comm);
 	}
 
@@ -195,6 +195,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/* modify QPs to ready recv state */
 	if (user_param.work_rdma_cm == OFF) {
 		if (ctx_connect(&ctx,rem_dest,&user_param,my_dest)) {
 			fprintf(stderr," Unable to Connect the HCA's through the link\n");
@@ -311,6 +312,7 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		/*wait for duplexing communication*/
 		if(user_param.duplex) {
 			if (ctx_hand_shake(&user_comm,&my_dest[0],&rem_dest[0])) {
 				fprintf(stderr,"Failed to sync between server and client between different msg sizes\n");

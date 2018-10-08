@@ -644,7 +644,7 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 		ALLOCATE(user_param->tcompleted, cycles_t, 1);
 
 	ALLOCATE(ctx->qp, struct ibv_qp*, user_param->num_of_qps);
-	/*allocate one MR and buf for each QPs*/
+	/*allocate one MR and one buf address pointer(void*) for each QP*/
 	ALLOCATE(ctx->mr, struct ibv_mr*, user_param->num_of_qps);
 	ALLOCATE(ctx->buf, void* , user_param->num_of_qps);
 
@@ -666,7 +666,7 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 
 		ALLOCATE(user_param->tcompleted,cycles_t,tarr_size);
 		memset(user_param->tcompleted, 0, sizeof(cycles_t)*tarr_size);
-		/*allocate one addr record, one send counter and one recv counter for each QP */
+		/*allocate one local and one remote buffer addr record, one send WR counter and one recv WR counter for each QP */
 		ALLOCATE(ctx->my_addr,uint64_t,user_param->num_of_qps);
 		ALLOCATE(ctx->rem_addr,uint64_t,user_param->num_of_qps);
 		ALLOCATE(ctx->scnt,uint64_t,user_param->num_of_qps);
@@ -676,7 +676,7 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 
 	} else if ((user_param->tst == BW || user_param->tst == LAT_BY_BW)
 		   && user_param->verb == SEND && user_param->machine == SERVER) {
-		/*allocate one addr record for each QP on the passive server*/
+		/*allocate one local addr record for each QP on the passive server*/
 		ALLOCATE(ctx->my_addr, uint64_t, user_param->num_of_qps);
 		ALLOCATE(user_param->tcompleted, cycles_t, 1);
 	} else if (user_param->tst == FS_RATE && user_param->test_type == ITERATIONS) {
@@ -686,7 +686,7 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 
 	if (user_param->machine == CLIENT || user_param->tst == LAT || user_param->duplex) {
 		/*allocate QPs * post_list sges and WRs*/
-		/*when the QP is 3 and the post_list is 3, after the ctx_set_send_wqes, the organizations of the WR arr is as following:
+		/*when the QP is 3 and the post_list is 3, after calling the ctx_set_send_wqes function, the organizations of the WR arr is as following:
 		  /WR1->WR2->WR3/ /WR4->WR5->WR6/ /WR7->WR8->WR9/
 		  /     QP1     / /     QP2     / /     QP3     /  */
 		ALLOCATE(ctx->sge_list, struct ibv_sge,user_param->num_of_qps * user_param->post_list);
@@ -710,16 +710,17 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 
 	ctx->size = user_param->size;
 
+	/*default mr_per_qp is set to 0, so the num_of_qps_factor = num_of_qps*/
 	num_of_qps_factor = (user_param->mr_per_qp) ? 1 : user_param->num_of_qps;
 
 	/* holds the size of maximum between msg size and cycle buffer,
-	* aligned to cache line, INC(BUFF_SIZE(ctx->size, ctx->cycle_buffer), ctx->cache_line_size)
+	* aligned to cache line, INC(BUFF_SIZE(ctx->size, ctx->cycle_buffer), ctx->cache_line_size) is one buff length for one QP
 	* it is multiply by 2 for send and receive
 	* with reference to number of flows and number of QPs */
 	ctx->buff_size = INC(BUFF_SIZE(ctx->size, ctx->cycle_buffer),
 				 ctx->cache_line_size) * 2 * num_of_qps_factor * user_param->flows;
 	ctx->send_qp_buff_size = ctx->buff_size / num_of_qps_factor / 2; // the buf size for each QP
-	ctx->flow_buff_size = ctx->send_qp_buff_size / user_param->flows; // flows for tcp/udp in raw ethernet mode.
+	ctx->flow_buff_size = ctx->send_qp_buff_size / user_param->flows; // flows for tcp/udp in raw ethernet mode, split the send_qp_buff into multiple flow buffs.
 	user_param->buff_size = ctx->buff_size;
 	if (user_param->connection_type == UD)
 		ctx->buff_size += ctx->cache_line_size;
@@ -1211,6 +1212,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 				}
 				memset(ctx->buf[qp_index], 0, ctx->buff_size);
 			} else if  (ctx->is_contig_supported == FAILURE) {
+				/*allocate the whole data buff for all QPs and store the starting address in the buff array head: ctx->buf[0] ++++++++++++++++++*/	
 				ctx->buf[qp_index] = memalign(user_param->cycle_buffer, ctx->buff_size);
 			}
 			#endif
@@ -1300,7 +1302,7 @@ int create_mr(struct pingpong_context *ctx, struct perftest_parameters *user_par
 {
 	int i;
 
-	/* create first MR */
+	/* create first MR and the whole data buff*/
 	if (create_single_mr(ctx, user_param, 0)) {
 		fprintf(stderr, "failed to create mr\n");
 		return 1;
@@ -1314,6 +1316,9 @@ int create_mr(struct pingpong_context *ctx, struct perftest_parameters *user_par
 				return 1;
 			}
 		} else {
+			/*create the rest mrs
+			  ctx->buf is a void** type, and refers to the buff address array for all QPs
+			  ctx->buf[i] refers to the starting buff address for QP i*/
 			ALLOCATE(ctx->mr[i], struct ibv_mr, 1);
 			memset(ctx->mr[i], 0, sizeof(struct ibv_mr));
 			ctx->mr[i] = ctx->mr[0];
@@ -2718,7 +2723,14 @@ void ctx_set_send_reg_wqes(struct pingpong_context *ctx,
 	}
 
 	for (i = 0; i < num_of_qps ; i++) { // first set parameters for each QP
+		/*recall the organization of WR and SGE array, each SGE corresponds to one WR*/
+		/*when the QP is 3 and the post_list is 1, after calling the ctx_set_send_wqes function, the organizations of the WR arr is as following:
+		  /WR1->null / WR2->null / WR3->null /
+		  /sg1->null / sg2->null / sg3->null / 
+		  /QP1       / QP2       / QP3       /  */
 		memset(&ctx->wr[i*user_param->post_list],0,sizeof(struct ibv_send_wr));
+
+		/*set the buff address of each QP to the sge.addr of each QP's sge +++++++++++++++++++++++++*/
 		ctx->sge_list[i*user_param->post_list].addr = (uintptr_t)ctx->buf[i];
 
 		if (user_param->mac_fwd) {
@@ -2740,21 +2752,25 @@ void ctx_set_send_reg_wqes(struct pingpong_context *ctx,
 
 			ctx->scnt[i] = 0;
 			ctx->ccnt[i] = 0;
+			/*record the local buff addr and the remote buff addr for each QP*/
 			ctx->my_addr[i] = (uintptr_t)ctx->buf[i];
 			if (user_param->verb != SEND)
 				ctx->rem_addr[i] = rem_dest[xrc_offset + i].vaddr;
 		}
 
-		for (j = 0; j < user_param->post_list; j++) { // then set parameters for the post_list of each QP
+		for (j = 0; j < user_param->post_list; j++) { // then set parameters for the WR post_list of each QP
 
+			/*compute the buff length for each sge, considering the hardware Circular Redenduncy Check when using Raw ethernet*/
 			ctx->sge_list[i*user_param->post_list + j].length =
 				(user_param->connection_type == RawEth) ? (user_param->size - HW_CRC_ADDITION) : user_param->size;
 
 			ctx->sge_list[i*user_param->post_list + j].lkey = ctx->mr[i]->lkey;
 
+			/*when the WR post_list is larger than 1, because the 0th sge has been set above, at the beginning of the circle*/
 			if (j > 0) {
-
-				ctx->sge_list[i*user_param->post_list +j].addr = ctx->sge_list[i*user_param->post_list + (j-1)].addr;
+				
+				/*each sge of wr in wr post_list refers to the same buff starting address and same buff length*/
+				ctx->sge_list[i*user_param->post_list + j].addr = ctx->sge_list[i*user_param->post_list + (j-1)].addr;
 
 				if ((user_param->tst == BW || user_param->tst == LAT_BY_BW) && user_param->size <= (ctx->cycle_buffer / 2))
 					increase_loc_addr(&ctx->sge_list[i*user_param->post_list +j],user_param->size,
@@ -2782,7 +2798,8 @@ void ctx_set_send_reg_wqes(struct pingpong_context *ctx,
 				ctx->wr[i*user_param->post_list + j].opcode = opcode_verbs_array[user_param->verb];
 			}
 			if (user_param->verb == WRITE || user_param->verb == READ) {
-
+				
+				/*the same setting mode with local addr of sge in wr*/
 				ctx->wr[i*user_param->post_list + j].wr.rdma.rkey = rem_dest[xrc_offset + i].rkey;
 
 				if (j > 0) {
@@ -3144,7 +3161,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		goto cleaning;
 	}
 
-	/* Record the first posted WR's timestamp*/
+	/* when the noPeak is ON, we only need to record the start and end cycles, here we record the starting posted WR's timestamp*/
 	if (user_param->test_type == ITERATIONS && user_param->noPeak == ON)
 		user_param->tposted[0] = get_cycles();
 
@@ -3191,16 +3208,17 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 				burst_iter = 0;
 			}
 
+			/*When the scnt < target iters and the send wrs - finished cqes < tx_depth for this QP, we continue to post wrs */
 			while ((ctx->scnt[index] < user_param->iters || user_param->test_type == DURATION) && (ctx->scnt[index] - ctx->ccnt[index]) < (user_param->tx_depth) &&
 					!((user_param->rate_limit_type == SW_RATE_LIMIT ) && is_sending_burst == 0)) {
 
 				if (ctx->send_rcredit) {
-					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows
+					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows used when verbs is SEND/RECV
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
-				/* post_list == 1 && not CQ moderation circle && not the last iteration && iteration type 
-				   only a N x iteration, so if it is not the last WR, should unsignaled*/
+				/* only when post_list =1, we use the customized cq_mod, else we set the post_list = cq_mod
+				   only a N x iteration, so if it is not the last WR or reaches to the cq_mod, it should be unsignaled*/
 				if (user_param->post_list == 1 && (ctx->scnt[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)
 					&& !(ctx->scnt[index] == (user_param->iters - 1) && user_param->test_type == ITERATIONS)) { 
 					
@@ -3220,6 +3238,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					#endif
 				}
 
+				/*record each WR's cycles for the final peak computation*/
 				if (user_param->noPeak == OFF)
 					user_param->tposted[totscnt] = get_cycles(); // +++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -3359,6 +3378,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 
 						ctx->ccnt[wc_id] += user_param->cq_mod;// one signaled cqe indicates that previous N-1 cqes are finished.
 						totccnt += user_param->cq_mod; // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+						/*record each cqe's cycles when peak is need to computed*/
 						if (user_param->noPeak == OFF) {
 
 							if (totccnt >=  tot_iters - 1)
@@ -3382,7 +3402,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					}
 		}
 	}
-	/* Record the last completed CQE's timestamp*/
+	/* Record the end completed CQE's timestamp*/
 	if (user_param->noPeak == ON && user_param->test_type == ITERATIONS)
 		user_param->tcompleted[0] = get_cycles(); 
 
