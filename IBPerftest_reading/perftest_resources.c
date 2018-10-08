@@ -716,7 +716,8 @@ void alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_par
 	/* holds the size of maximum between msg size and cycle buffer,
 	* aligned to cache line, INC(BUFF_SIZE(ctx->size, ctx->cycle_buffer), ctx->cache_line_size) is one buff length for one QP
 	* it is multiply by 2 for send and receive
-	* with reference to number of flows and number of QPs */
+	* with reference to number of flows and number of QPs 
+	* ctx->size default 65536*/
 	ctx->buff_size = INC(BUFF_SIZE(ctx->size, ctx->cycle_buffer),
 				 ctx->cache_line_size) * 2 * num_of_qps_factor * user_param->flows;
 	ctx->send_qp_buff_size = ctx->buff_size / num_of_qps_factor / 2; // the buf size for each QP
@@ -2941,14 +2942,20 @@ int ctx_alloc_credit(struct pingpong_context *ctx,
 		struct perftest_parameters *user_param,
 		struct pingpong_dest *my_dest)
 {
-	int buf_size = 2*user_param->num_of_qps*sizeof(uint32_t);
+	int buf_size = 2*user_param->num_of_qps*sizeof(uint32_t); // why 2?
 	int flags = IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE;
 	int i;
 
+	/*allocate ctrl buf and credit buf for each QP, the former half is used for ctrl , the latter half is used for credit
+	  example: QP = 3, 
+	  uint32_t  uint32_t  uint32_t || uint32_t  uint32_t  uint32_t  
+	  			ctrl			   ||			credit
+		QP1 	  QP2		QP3	   ||	QP1		  QP2		QP3
+	  */
 	ALLOCATE(ctx->ctrl_buf,uint32_t,user_param->num_of_qps);
 	memset(&ctx->ctrl_buf[0],0,buf_size);
 
-	ctx->credit_buf = (uint32_t *)ctx->ctrl_buf + user_param->num_of_qps;
+	ctx->credit_buf = (uint32_t *)ctx->ctrl_buf + user_param->num_of_qps; 
 	ctx->credit_cnt = user_param->rx_depth/3;
 
 	ctx->credit_mr = ibv_reg_mr(ctx->pd,ctx->ctrl_buf,buf_size,flags);
@@ -3161,7 +3168,11 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		goto cleaning;
 	}
 
+<<<<<<< HEAD
 	/* when the noPeak is ON, we only need to record the start and end cycles, here we record the starting posted WR's timestamp*/
+=======
+	/* Record the first posted WR's timestamp, noPeak default OFF*/
+>>>>>>> 5fb8ca9d9dcbe90e5b64feb16427d793dfd379f4
 	if (user_param->test_type == ITERATIONS && user_param->noPeak == ON)
 		user_param->tposted[0] = get_cycles();
 
@@ -3212,8 +3223,13 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 			while ((ctx->scnt[index] < user_param->iters || user_param->test_type == DURATION) && (ctx->scnt[index] - ctx->ccnt[index]) < (user_param->tx_depth) &&
 					!((user_param->rate_limit_type == SW_RATE_LIMIT ) && is_sending_burst == 0)) {
 
+<<<<<<< HEAD
 				if (ctx->send_rcredit) {
 					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows used when verbs is SEND/RECV
+=======
+				if (ctx->send_rcredit) { // used when SEND/RECV
+					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index]; // send windows
+>>>>>>> 5fb8ca9d9dcbe90e5b64feb16427d793dfd379f4
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
