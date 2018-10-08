@@ -1213,7 +1213,8 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 				}
 				memset(ctx->buf[qp_index], 0, ctx->buff_size);
 			} else if  (ctx->is_contig_supported == FAILURE) {
-				/*allocate the whole data buff for all QPs and store the starting address in the buff array head: ctx->buf[0] ++++++++++++++++++*/	
+				/*allocate the whole data buff for all QPs and store the starting address in the buff array head: ctx->buf[0] ++++++++++++++++++
+				  memalign is important for performance !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/	
 				ctx->buf[qp_index] = memalign(user_param->cycle_buffer, ctx->buff_size);
 			}
 			#endif
@@ -3167,9 +3168,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		return_value = FAILURE;
 		goto cleaning;
 	}
-
-	/* Record the first posted WR's timestamp, noPeak default OFF*/
->>>>>>> 5fb8ca9d9dcbe90e5b64feb16427d793dfd379f4
+	/* when the noPeak is ON, we only need to record the start and end cycles, here we record the starting posted WR's timestamp*/
 	if (user_param->test_type == ITERATIONS && user_param->noPeak == ON)
 		user_param->tposted[0] = get_cycles();
 
