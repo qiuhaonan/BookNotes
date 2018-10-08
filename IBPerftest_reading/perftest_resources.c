@@ -3167,12 +3167,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		return_value = FAILURE;
 		goto cleaning;
 	}
-
-<<<<<<< HEAD
 	/* when the noPeak is ON, we only need to record the start and end cycles, here we record the starting posted WR's timestamp*/
-=======
-	/* Record the first posted WR's timestamp, noPeak default OFF*/
->>>>>>> 5fb8ca9d9dcbe90e5b64feb16427d793dfd379f4
 	if (user_param->test_type == ITERATIONS && user_param->noPeak == ON)
 		user_param->tposted[0] = get_cycles();
 
