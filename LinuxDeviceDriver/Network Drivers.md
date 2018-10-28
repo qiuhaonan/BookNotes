@@ -1,5 +1,5 @@
-#[Linux Device Driver3]Network Drivers
-##[引言]
+# [Linux Device Driver3]Network Drivers
+## [引言]
 网络接口(network interface)是第三个标准linux设备类别。 网络接口(network interface)在系统内的角色类似于一个挂载的块设备。一个块设备把硬盘和方法注册到内核系统中，并且通过request函数以请求的形式传输和接收数据块。类似地，一个网络接口(network interface)必须把自己注册到特定的内核数据结构中，这样以来，当数据包和外界发生交换时，这些数据结构就能够被调用。
 
 在挂载的硬盘和交付数据包的接口(interface)之间有一些重要的区别。首先，一个磁盘是在/dev目录下以一个特殊文件的形式存在的，而一个网络接口(network interface)却没有这样的入口点。正常的文件操作(read, write等等)不能用在网络接口上，所以Unix中”一切皆文件“的方法对网络接口(network interface)就不管用了。因此，网络接口(network interface)存在它们自己的命名空间中，并且导出了一套不同的操作。
@@ -14,14 +14,14 @@ Linux内核的网络子系统被设计成与协议完全无关，网络层协议
 
 网络世界中使用名词octet代表一组8bits，这是网络设备和协议能理解的最小单位。名词Byte在这个上下文中不会被使用。一个header是当一个packet经过网络子系统不同层次时添加的一组bytes(err, octets)。
 
-##[An Example Memory-based Modularized Network Interface: snull-How snull is Designed]
+## [An Example Memory-based Modularized Network Interface: snull-How snull is Designed]
 最开始且最重要的设计决定是接口应该与实际的硬件无关。这种限制导致事情有些像loopback接口，snull不是一个loopback接口，它模拟和远端主机的通信来更好的演示编写一个网络驱动的任务。Linux loopback驱动实际上相当简单，你可以在drivers/net/loopback.c中找到它。snull的另一个特点是它只支持IP流量。这是接口内部工作的结果--snull不得不在主机内部模拟并且解释packets来恰当地模拟一对硬件接口。真实的接口不依赖于传输协议，并且snull的这种局限并不影响章节中的代码片段。
 
-##[Assigning IP Numbers]
+## [Assigning IP Numbers]
 如果主机向自己的ip地址发送数据包，内核不会把数据包交给网络接口，而是使用loopback来交付数据。因此，为了能够通过snull建立一个连接，在进行数据传输是必须对源地址和目的地址进行修改。为了实现这种隐式loopback，snull接口切换源地址和目的地址的第三个octet中最低位bit值(least significant bit)，也就是说它会改变C类IP号的网络号和主机号。最终的效果就是通过接口sn0发packets到网络A后，接口sn1会受到来自网络B的packets。
 
-##[Connecting to the Kernel]
-###[Device Registration]
+## [Connecting to the Kernel]
+### [Device Registration]
 当一个驱动模块被加载到一个运行的内核中时，它请求资源并提供功能。驱动应该探测它的设备并且使用它的硬件位置(I/O端口和IRQ线)，但是不注册它们。网络驱动被它的模块初始化函数注册的方式不同于字符设备和块设备。因为对于网络接口，不存在等效的主要和次要编号，所以网络驱动并不请求这样的编号。代替的方式是，驱动为每一个新检测到的接口在一个全局网络设备链表中插入一个数据结构。
 
 每个接口由一个struct net_devie项描述，定义在<linux/netdevice.h>。与许多其他内核接口类似，这个net_device结构体包含一个kobject并且被引用计数，然后通过sysfs导出。分配这个结构体有专用的内核函数
@@ -40,7 +40,7 @@ for (i = 0; i < 2; i++)
 ```
 此处应该注意的是：一旦你调用了register_netdev函数，你的驱动也许就会运行在设备上，因此，除非所有的事情都已经完全被初始化完成，否则不要注册这个设备。
 
-##[Initializing Each Device]
+## [Initializing Each Device]
 注意到在运行时struct net_device总是被放在一起，它不能像file_operations或者block_device_operations结构体一样在编译期进行设置。因此，在调用register_netdev之前必须完成初始化。这个net_device结构体非常大而且复杂。但幸运的是，内核通过ether_setup函数来小心处理一些以太网范围的默认设置(通过调用alloc_ehterdev函数来实现)。 因为snull使用alloc_netdev函数，因此它需要提供一个额外的初始化函数，如下：
 ```cpp
 ether_setup(dev); /* assign some of the fields */
@@ -62,7 +62,7 @@ dev->hard_header_cache = NULL; /* Disable caching */
 ```
 上面的代码对net_device结构体做了例行初始化，也就是保存了指向我们驱动函数的指针。唯一不寻常的地方是对flags设置了IFF_NOARP，它指定这个接口不能使用ARP协议。ARP是一个低层的以太网协议，它的任务是把IP地址转换成以太网MAC地址。将hard_header_cache设置成null也是同样的原因，它在该接口上禁用ARP响应的缓存。
 
-##[Module Unloading]
+## [Module Unloading]
 卸载模块时没有很特别的事。模块清理函数简单地注销接口，执行任何需要的内部清理工作，然后释放net_device结构体，返还给系统。
 ```cpp
 void snull_cleanup(void)
@@ -104,7 +104,7 @@ unsigned char irq;
 unsigned char if_port;
 unsigned char dma; //分配给设备的DMA通道，仅对串行总线有意义，除了查看信息之外不会在驱动之外使用
 ```
-###[Interface Information]
+### [Interface Information]
 大多数接口信息都能被ether_setup函数正确的设置，但是flags和dev_addr域是特定于设备的，必须在初始化时显式的赋值。一些非以太网接口可以使用类似于ether_setup的辅助函数。在drivers/net/net_init.c文件中导出了一些列这种函数，包括下面的:
 ```cpp
 void ltalk_setup(struct net_device *dev);
@@ -131,7 +131,7 @@ IFF_UP | IFF_BROADCAST | IFF_DEBUG | IFF_LOOPBACK | IFF_POINTOPOINT | IFF_NOARP 
 NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_IP_CSUM | NETIF_F_NO_CSUM | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA | NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER | NETIF_F_VLAN_CHALLENGED | NETIF_F_TSO
 ```
 
-###[The Device Methods]
+### [The Device Methods]
 和字符设备与块设备一样，每个网络设备也要声明可以支持的操作。其中有些操作为NULL，另外有一些不做改变，因为ether_setup为它们设置了合理的操作。
 
 网络接口的设备方法可以分成两组：基本的和可选的。下面是基本的方法:
@@ -158,7 +158,7 @@ int (*header_cache)(struct neighbour *neigh, struct hh_cache *hh);//存储ARP解
 int (*header_cache_update)(struct hh_cache *hh, struct net_device *dev, unsigned char *haddr);
 int (*hard_header_parse)(struct sk_buff *skb, unsigned char *haddr);
 ```
-###[Utility Fields]
+### [Utility Fields]
 剩下的数据域被接口用来保存一些有用的状态信息。
 ```cpp
 unsigned long trans_start;
@@ -171,7 +171,7 @@ spinlock_t xmit_lock;//避免多个同时调用驱动的hard_start_xmit函数
 int xmit_lock_owner;//持有锁的CPU编号
 ```
 
-##[Opening and Closing]
+## [Opening and Closing]
 我们的驱动可以在内核启动或者模块加载时探测接口。在接口能够携带packet时，内核必须打开它并且赋予它一个地址。
 
 当ifconfig用来给接口赋予一个地址时，它执行两个任务。首先它通过ioctl(SIOCSIFADDR)赋予地址，其次再通过ioctl(SIOCSIFFLAGS)设置dev->flag中的IFF_UP位。站在设备的角度来看，第一个任务什么也没做，因为它和设备无关，但是第二个任务调用了设备的open方法。类似的，当接口被关闭时，ifconfig使用ioctl(SIOCSIFFLAGS)来清理IFF_UP位和调用stop方法。
@@ -181,7 +181,7 @@ int xmit_lock_owner;//持有锁的CPU编号
 void netif_start_queue(struct net_device *dev);
 void netif_stop_queue(struct net_device *dev);
 ```
-##[Packet Transmission]
+## [Packet Transmission]
 网络接口执行的最重要的任务就是发送数据和接收数据。发送数据就是指在网络链路上传送一个packet。只要内核需要发送一个数据packet，它就会调用驱动的hard_start_transmit方法把数据放在一个外出的队列(an outgoing queue)。内核处理的每个packet都包含在一个socket buffer结构体中(struct sk_buff)，定义在<linux/skbuff.h>。即使接口与socket无关，在更高的网络层上每个网络packet属于一个socket，并且任何socket的输入/输出缓冲都是struct sk_buff结构体的链表。同样的sk_buff结构体被用作承载网络数据来穿过整个linux网络子系统，但是站在接口的角度上来看，一个socket缓冲仅仅是一个packet。指向sk_buff的指针通常被叫做skb。
 
 传递给hard_start_xmit的socket缓存包含应该出现在物理媒介上的物理packet，具有完整的传输层头部。接口不需要对传输的数据进行修改。skb->data指向需要传输的数据，skb->len是数据的长度。snull的packet传输代码如下：
@@ -209,7 +209,7 @@ int snull_tx(struct sk_buff *skb, struct net_device *dev)
 ```
 此处需要注意的是，当被传输的数据包要小于底层媒介支持的最短数据包长度时的处理。snull此处是直接显式的以0填充到最小长度。hard_start_xmit成功时返回0，如果返回非0值则代表此时packet不能被传输，内核会过会再重试。在这种情况下，你的驱动应该停止队列，直到导致这种错误的情况被处理完。
 
-##[Controlling Transmission Concurrency]
+## [Controlling Transmission Concurrency]
 hard_start_xmit函数通过一个自旋锁保护起来防止并发调用。函数返回后也许立马又被调用。当软件通知硬件有packet需要传输但硬件传输也许尚未完成，这个函数就返回了。但是对于snull而言，这不是问题，因为在函数返回之前，packet已经被CPU传输完毕。
 
 真实的硬件接口是异步地传输packets，并且只有有限的内存来用于存储发送的packets。当内存不够时，驱动需要告诉网络系统不能再启动任何传输，直到硬件准备接收新的数据。这种提醒是通过调用netif_stop_queue函数来完成的。一旦你的驱动不得不停止入队，那么它就必须在未来的某一刻，当它能够传输新的packet时，安排重新启动入队。为了实现该目标，它应该调用：
@@ -222,7 +222,7 @@ void netif_tx_disable(struct net_device *dev);
 ```
 这个函数的行为很像netif_stop_queue，但是它也确保当它返回时，你的hard_start_xmit方法不会被任何CPU上调用。这个队列可以通过netif_wake_queue再次重启。
 
-##[Transmission Timeouts]
+## [Transmission Timeouts]
 大多数硬件驱动需要做好准备面对硬件有时无法回应的情况。接口可能会忘记它们正在干吗，或者系统可能丢失掉一个中断。对于被设计运行在个人电脑上的设备来说，这种问题是家常便饭。
 
 许多驱动通过设置计时器来解决这种问题，如果在计时器超时时该操作仍未完成，那么一定是某些地方除了问题。网络系统本质上是一个通过许多计时器控制的复杂状态机。因此，网络层代码是检测传输超时的好地方。因而，网络驱动不需要为检测这种问题而担心。它们仅仅需要设置一个超时时间(net_device结构体中的watchdog_timeo域)。这个时间应该比足够长以满足正常传输的时延(比如网络媒介中由拥塞造成的碰撞)。
@@ -253,7 +253,7 @@ void snull_tx_timeout(struct net_device *dev)
 ```
 当一个传输超时发生时，驱动必须在接口统计数据中标记错误，并且将设备恢复到正常的状态。当超时发生在snull中时，驱动会调用snull_interrupt来填充"missing"的中断并且重启传输队列。
 
-##[Scatter/Gather I/O]
+## [Scatter/Gather I/O]
 创建一个能够在网络上传输的packet的过程涉及到组装多个数据片。packet数据通常同用户空间拷贝而来，不同网络层的头部必须添加进来。这种组装过程可能要求相当多的数据拷贝。然而，如果网络接口被设计成能够以scatter/gather I/O方式来传输packet，那么packet不需要组装到单个数据块中，许多数据拷贝操作都可以被避免掉。Scatter/gather I/O也使得可以直接从用户空间零拷贝传输网络数据。
 
 除非在device结构体中设置了NETIF_F_SG标志位，否则内核不会传递分散的packets给hard_start_xmit方法。如果你设置了这个flag，你需要检查skb内部的'shared info'域来判断是否这个packet是由单个片段还是多个片段组成，如果是多个片段组成还需要找到它们。一个特殊的宏来访问这个特殊的信息，叫做skb_shinfo。当传输可能分片的packet时，处理的第一步如下所示：
@@ -272,7 +272,7 @@ struct skb_frag_struct {
 ```
 我们再一次和page结构体打交道了，而不是和内核虚拟地址。你的驱动应该循环所有片段，将每个片段映射到一次DMA传输中并且不要忘记了由skb直接指向的第一个片段。你的硬件必须组装这些片段并且把它们作为一个单独的packet来传输。注意，如果你设置了NETIF_F_HIGHDMA标志位，那么有些或者全部的片段都会位于高端内存。
 
-##[Packet Reception]
+## [Packet Reception]
 从网络中收取数据要比传输数据更加巧妙，因为必须在一个原子环境中来分配一个sk_buff并且把它交给上层处理。网络驱动实现的可能有两种数据接收模式：中断和轮询。大多数驱动实现中断驱动的技术。高带宽的适配器的驱动也许会实现轮询技术。
 
 snull的实现将硬件细节与硬件无关的事务隔离开来。因此，在硬件收到packet之后，snull中断处理就会调用snull_rx函数，此时，packet已经在计算机的主存中。snull_rx收到一个packet的数据和它的长度。它仅有的任务就是把packet和额外的信息发送给网络代码的上层。这个代码与数据指针和长度获得的方式无关。
@@ -310,7 +310,7 @@ void snull_rx(struct net_device *dev, struct snull_packet *pkt)
 
 在理解packet之前，网络需要一些信息来解释。最终，在向上传递buffer之前，dev和protocol域必须被设置。你也许奇怪为什么我们已经在net_device结构体中设置了校验标志位，而在这里还需要再设置校验和状态。答案是：net_device接头体中设置的校验标志位是针对发送出去的数据包，不适用于收到的数据包。数据接收的最后一步是netif_rx，它把socket缓冲交付到上层。
 
-##[The Interrupt Handler]
+## [The Interrupt Handler]
 大多数硬件接口通过一个中断处理函数来控制。硬件打断处理器来通知两种可能事件中的一个：一个新的packet已经到达或者一个发送的数据包已经传输完毕。网络接口也能产生中断来发出错误、链路状态改变等等多种信号。
 
 通常的中断例程可以通过检查物理设备上的状态寄存器来区分数据收发完成。snull接口也是以类似方式工作，但是它的状态字以软件实现并且存储在dev->priv中。一个网络接口的中断处理程序看起来像下面这样：
@@ -363,7 +363,7 @@ dev_kfree_skb_irq(struct sk_buff *skb);//在中断上下文中使用
 dev_kfree_skb_any(struct sk_buff *skb);//不确定运行的环境时使用
 ```
 
-##[Receive Interrupt Mitigation]
+## [Receive Interrupt Mitigation]
 对于高带宽接口而言，每次收到数据都产生一次中断的话会对性能造成非常大的开销。作为一种在高端系统上改善linux性能的方式，网络子系统开发者创建了一个可替代的基于轮询的接口(叫做NAPI)。在驱动开发者中，轮询是一个禁忌字眼，他们通常认为轮询技术不优雅且不高效。的确，当没有任务需要处理时对接口进行轮询是低效的。对于一个拥有高速接口并且处理大型流量的系统而言，总是有许多packets需要处理。此时，没有必要来打断处理器，以轮询方式频繁地从接口接收packets是足够的。
 
 停止接收中断可以为处理器减少许多负担。NAPI兼容的驱动在packets由于拥塞被网络代码丢掉时也可以不必把packets交给内核，当很需要这种帮助的时候，它也可以改善性能。由于不同的原因，NAPI驱动也不太可能对packets进行重排序。
