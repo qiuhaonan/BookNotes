@@ -82,15 +82,15 @@ void snull_cleanup(void)
 ```
 如果在某些地方仍然有对该结构体的引用，该结构体也许会继续存在，但是驱动代码不需要考虑这个。一旦你注销了接口，内核就再也不会调用该接口的方法。注意，我们内部清理(snull_teardown_pool)必须发生在设备注销之后，在把net_device结构体返还给系统之前。因为，一旦调用了free_netdev函数，我们就不能再引用设备或者设备的private area。
 
-##[The net_device Structure in Detail]
-###[Global Information]
+## [The net_device Structure in Detail]
+### [Global Information]
 ```cpp
 char name[IFNAMSIZ];
 unsigned long state;
 struct net_device *next;
 int (*init)(struct net_device *dev);
 ```
-###[Hardware Information]
+### [Hardware Information]
 ```cpp
 unsigned long rmem_end;
 unsigned long rmem_start; 
@@ -367,3 +367,125 @@ dev_kfree_skb_any(struct sk_buff *skb);//不确定运行的环境时使用
 对于高带宽接口而言，每次收到数据都产生一次中断的话会对性能造成非常大的开销。作为一种在高端系统上改善linux性能的方式，网络子系统开发者创建了一个可替代的基于轮询的接口(叫做NAPI)。在驱动开发者中，轮询是一个禁忌字眼，他们通常认为轮询技术不优雅且不高效。的确，当没有任务需要处理时对接口进行轮询是低效的。对于一个拥有高速接口并且处理大型流量的系统而言，总是有许多packets需要处理。此时，没有必要来打断处理器，以轮询方式频繁地从接口接收packets是足够的。
 
 停止接收中断可以为处理器减少许多负担。NAPI兼容的驱动在packets由于拥塞被网络代码丢掉时也可以不必把packets交给内核，当很需要这种帮助的时候，它也可以改善性能。由于不同的原因，NAPI驱动也不太可能对packets进行重排序。
+
+并非所有的设备都能工作在NAPI模式，但是，一个具备NAPI模式的接口必须能够存储几个packets(要么在网卡本身，要么在内存中的DMA环)。接口应该能够禁用收包中断，同时还能对传输成功和其他事件产生中断。
+
+snull驱动在加载时设置use_napi参数为一个非零值，然后工作在NAPI模式。在初始化时，需要对net_device的一些域进行设置：
+```cpp
+if(use_napi) {
+    dev->poll   = snull_poll;
+    dev->weight = 2;
+}
+```
+poll域必须设置成驱动的polling方法；weight域表示接口的重要性：当资源吃紧时，从这个接口上应该接收多少流量。不应该把weight设置的比接口能够存储的packets数量大。在snull中，我们把weight设置成2来演示推后接收数据包的方式。
+
+下一步是改变中断处理函数。当你的接口发出信号说有一个packet到达了，中断处理函数不应该处理这个packet，而应该禁用接收中断并且告诉内核此时应该对接口进行轮询。在snull的中断处理函数中，响应收到packets的中断响应被改变成下面这种逻辑：
+```cpp
+if(statusword & SNULL_RX_INTR) {
+    snull_rx_ints(dev, 0); /* Disable further interrupts */
+    netif_rx_schedule(dev); //causes our poll method to be called at some future point
+}
+
+static int snull_poll(struct net_device *dev, int *budget)
+{
+    int npackets = 0, quota = min(dev->quota, *budget);
+    struct sk_buff *skb;
+    struct snull_priv *priv = netdev_priv(dev);
+    struct snull_packet *pkt;
+    while (npackets < quota && priv->rx_queue) {
+        pkt = snull_dequeue_buf(dev);
+        skb = dev_alloc_skb(pkt->datalen + 2);
+        if (! skb) {
+    		if (printk_ratelimit( ))
+    			printk(KERN_NOTICE "snull: packet dropped\n");
+    		priv->stats.rx_dropped++;
+    		snull_release_buffer(pkt);
+    		continue;
+    	}
+    	memcpy(skb_put(skb, pkt->datalen), pkt->data, pkt->datalen);
+    	skb->dev = dev;
+    	skb->protocol = eth_type_trans(skb, dev);
+    	skb->ip_summed = CHECKSUM_UNNECESSARY; /* don't check it */
+    	netif_receive_skb(skb);
+    	/* Maintain stats */
+    	npackets++;
+    	priv->stats.rx_packets++;
+    	priv->stats.rx_bytes += pkt->datalen;
+    	snull_release_buffer(pkt);
+    }
+    /* If we processed all packets, we're done; tell the kernel and reenable ints */
+    *budget -= npackets;
+    dev->quota -= npackets;
+    if (! priv->rx_queue) {
+        netif_rx_complete(dev);
+        snull_rx_ints(dev, 1);
+        return 0;
+	}
+	/* We couldn't process everything. */
+	return 1;
+}
+```
+budget参数提供了允许我们往内核中传递的packet的最大数量。在device结构体内，quota域给了另一个最大值，而poll方法必须取两者中最小的那一个。它也应该从这两者中减去已经收到的数据包。这个budget值是当前CPU能从所有接口中接收数据包的最大值，而quota是一个特定于每个接口的值，通常是接口初始化时设给weight的值。应该使用netif_receive_skb而不是netif_rx来将packets交给内核。如果在给定限制内，poll方法能够处理所有可用的packets，那么它应该重新启用接收中断，调用netif_rx_complete来关闭轮询并且返回0。返回1则代表仍然有packets需要处理。网络子系统保证任何特定设备的poll方法不会在超过一个核上并发调用。但是对poll的调用仍然会和对你的设备其他方法的调用并发出现。
+
+## [Changes in Link State]
+按照定义，网络连接是与本地系统外的世界打交道。因此，它们通常会被外界的事件影响并且这些影响是转瞬即逝的。网络子系统需要知道网络链路在什么时候启动和关闭，并且它提供一些函数以供驱动用来传递这些信息。
+
+大多数涉及到一个实际物理连接的网络技术会提供一个载体状态；载体的存在意味着硬件是存在的并且工作就绪。例如，以太网卡感知网线上的载波信号，当一个用户剪断了网线，这个载波信号就消失了，链路关闭。默认情况下，假设网络设备是有一个载波信号存在的。但是，驱动可以显式地改变这个状态：
+```cpp
+void netif_carrier_off(struct net_device *dev);
+void netif_carrier_on(struct net_device *dev);
+```
+如果你的驱动检测到某个设备没有载波信号，它应该调用netif_carrier_off来通知内核这种变化。
+
+## [The Socket Buffers]
+了解一下sk_buff结构体的内容
+### [The Important Fields]
+```cpp
+struct net_device *dev;
+union {/*...*/} h;
+union {/*...*/} nh;
+union {/*...*/} mac;
+unsigned char *head;
+unsigned char *data;
+unsigned char *tail;
+unsigned char *end;
+unsigned int len;
+unsigned int data_len;
+unsigned char ip_summed;
+unsigned char pkt_type;
+shinfo(struct sk_buff *skb);
+unsigned int shinfo(skb)->nr_frags;
+skb_frag_t shinfo(skb)->frags;
+
+struct sk_buff *alloc_skb(unsigned int len, int priority);
+struct sk_buff *dev_alloc_skb(unsigned int len);
+void kfree_skb(struct sk_buff *skb);
+void dev_kfree_skb(struct sk_buff *skb);
+void dev_kfree_skb_irq(struct sk_buff *skb);
+void dev_kfree_skb_any(struct sk_buff *skb);
+unsigned char *skb_put(struct sk_buff *skb, int len);
+unsigned char *__skb_put(struct sk_buff *skb, int len);
+unsigned char *skb_push(struct sk_buff *skb, int len);
+unsigned char *__skb_push(struct sk_buff *skb, int len);
+int skb_tailroom(struct sk_buff *skb);
+int skb_headroom(struct sk_buff *skb);
+void skb_reserve(struct sk_buff *skb, int len);
+unsigned char *skb_pull(struct sk_buff *skb, int len);
+int skb_is_nonlinear(struct sk_buff *skb);
+int skb_headlen(struct sk_buff *skb);
+void *kmap_skb_frag(skb_frag_t *frag);
+void kunmap_skb_frag(void *vaddr);
+```
+
+## [MAC Address Resolution]
+### [Using ARP with Ethernet]
+ARP是由内核管理，以太网接口不需要做任何事情来支持ARP。只要dev->addr和dev->addr_len在启动时正确的设置了，驱动就不需要担心把解析IP号解析成MAC地址；ether_setup给dev->hard_header和dev->rebuild_header设置正确的设备方法。虽然内核正常地处理地址解析的细节，但是它需要调用接口驱动来帮助构建packet。毕竟，驱动对物理层头部的细节了如指掌，同时网络代码的作者试着将内核的其他部分和这部分内容隔离开来。为此，内核调用驱动的hard_header方法来使用ARP查询的结果布局packet。正常情况下，以太网驱动作者不需要知道这个过程，因为通用的以太网代码已经处理的所有事情。
+
+### [Overriding ARP]
+### [Non-Ethernet Headers]
+
+## [Custom ioctl Commands]
+## [Statistical Information]
+## [Multicast]
+## [Kernel Support for Multicasting]
+## [Ethtool Support]
