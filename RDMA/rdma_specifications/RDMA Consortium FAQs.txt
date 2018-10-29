@@ -1,0 +1,58 @@
+RDMA Consortium FAQs  April 29, 2003, 2015
+ 
+Q1: Who are the members of the RDMA Consortium?
+A1: The founding members are Adaptec, Broadcom, Cisco, Dell, EMC, Hewlett-Packard, IBM, Intel, Microsoft and Network Appliance. Additionally there are over 50 member companies of the RDMA Consortium, a list of which is available at RMDACmembersApr29.htm.
+ 
+Q2: What is the RDMA Consortium announcing at this time?
+A2: The RDMA Consortium is announcing completion of version 1.0 of the RDMA Verbs specification. The completed Verbs specification accompanies the RDMA wire-protocol suite, which was completed in October of 2002.  The specifications are suitable for first generation industry implementations of RDMA over TCP solutions and comprise the information required for RDMA hardware development.  The consortium continues to work on additional protocol specifications to broaden usage of the RDMA protocol suite which are expected to be completed in 3Q03.
+ 
+Q3: What is the schedule and status of the specifications?
+A3: Version 1.0 of the RDMA over TCP wire protocol specifications was completed in October of 2002 and was forwarded to the IETF where it is now an official work item of the RDDP workgroup. The RDMA Verbs specification now is complete and has been forwarded to the IETF for their consideration. Work on additional protocol specifications to broaden usage of the RDMA protocol suite is expected to be completed in 3Q03.
+ 
+Q4: What are the specifications that have been completed to date?
+A4: The RDMA Verbs specification and the suite of three specifications that describe the RDMA over TCP wire protocol: RDMA Protocol, DDP protocol  and MPA protocol. All four specifications can be retrieved from rdmaconsortium.org.
+
+Q5: What is RDMA over TCP?
+A5: Remote Direct Memory Access is the ability of one computer to directly place information in another computer’s memory with minimal demands on memory bus bandwidth and CPU processing overhead, while preserving memory protection semantics. RDMA over TCP/IP defines the interoperable protocols to support RDMA operations over standard TCP/IP networks.
+ 
+Q6: What does it take to become a RDMA Consortium member?
+A6: Information on applying for membership is available at rdmaconsortium.org. The RDMA Consortium will accept members according to transparent criteria which is published on the website.
+ 
+Q7: Why is RDMA over TCP important? 
+A7: Demand for networking bandwidth and increases in network speeds are growing faster than the processing power and memory bandwidth of the compute nodes that ultimately must process the networking traffic. This is especially true as the industry begins migrating to 10Gigabit Ethernet infrastructures. RDMA over TCP addresses these issues in two very important ways: first, much of the overhead of protocol processing can be moved to the Ethernet adapter and second, each incoming network packet has enough information to allow its data payload to be placed directly into the correct destination memory location, even when packets arrive out of order. The direct data placement property of RDMA eliminates intermediate memory buffering and copying and the associated demands on the memory and processor resources of the compute nodes, without requiring the addition of expensive buffer memory on the Ethernet adapter. Additionally, RDMA over TCP/IP uses the existing IP/Ethernet based network infrastructure.
+ 
+Q8: What is the relationship of RDMA over TCP to InfiniBand and VI Architecture?
+A8: All three architectures specify a form of RDMA and have strong similarities. The VI Architecture goal was to specify RDMA capabilities without specifying the underlying transport. The InfiniBand architecture improved upon the RDMA capabilities of VI and specifies an underlying transport and physical layer. RDMA over TCP/IP will specify an RDMA layer that will interoperate over a standard TCP/IP transport layer. RDMA over TCP does not specify a physical layer; it will work over Ethernet, wide area networks (WAN) or any other network where TCP/IP is used.
+ 
+Q9: What is an RNIC?
+A9: An RNIC is an RDMA enabled NIC (Network Interface Controller). The RNIC provides support for the RDMA over TCP protocol suite and can include a combination of TCP offload and RDMA functions in the same network adapter.
+ 
+Q10: What is the significant of the RNIC Verbs specification?
+A10: The RNIC Verbs specification provides a standard, semantic interface definition for the functions performed by an RNIC. It is expected that network adapter vendors will support the RDMA protocol using the semantics defined by the RNIC Verbs.  It is also expected that software vendors will interface to RNICs using the semantics defined by the RNIC Verbs specification. As a result, a standard, semantic RNIC Verbs definition should accelerate the adoption rate for RNICs.
+ 
+Q11:  How are the RDMA over TCP/IP Verbs related to the InfiniBand Verbs?
+A11: The architectural interfaces to InfiniBand and RDMA over TCP/IP are both defined by a “Verbs” interface specification. The Verbs specification developed by the RDMA Consortium has a large amount of semantic commonality with the InfiniBand Verbs. The Verbs specification developed by the RDMA Consortium also provides performance enhancements for some application environments. 
+ 
+Q12: Will RDMA/TCP require changes to applications to deliver customer benefit?
+A12: No. It is expected that legacy applications will see significant performance advantages using standard interfaces such as Sockets and storage.
+ 
+Q13: Will RDMA/TCP require changes to TCP or other Internet protocols?
+A13: No. The RDMA over TCP specification takes as a requirement that it operate over standard TCP with no required changes to Internet infrastructure.
+ 
+Q14: What is the relationship between TCP offload engines (TOE) and RDMA?
+A14: A TCP offload engine is a specialized (intelligent) network adapter that moves much of the TCP/IP protocol processing overhead from the host CPU/OS to the network adapter. TCP Offload Engines reduce much of the TCP/IP protocol processing burden from the main CPU. However, the ability of performing zero copy of incoming data streams on a TOE is very dependent on the TOE design, the operating system's programming interface, and the application's communication model. In many cases, a TOE doesn’t directly support zero copy of incoming data streams. RDMA directly supports a zero copy model of incoming data over a wider range of application environments than a TOE . The combination of TCP offload and RDMA in the same network adapter is expected to provide an optimal architecture for high speed networking with the lowest demands on both CPU and memory resources.
+ 
+Q15: Will RDMA/TCP work over the Internet?
+A15: Absolutely. RDMA is being layered on top of TCP to specifically work reliably over the Internet. RDMA does not change TCP's congestion-avoidance mechanisms or security architecture (IPSEC).
+ 
+Q16: What is the status of RDMAC specifications in the IETF?
+A16: Information on RDMA over TCP/IP wire-protocol specifications within the IETF is available at http://www.ietf.org/html.charters/rddp-charter.html.
+ 
+Q17: What are the annual dues?
+A17: There are no recurring annual dues. The founding members have committed financial resources sufficient for specification development and industry review.
+ 
+Q18: How do I get more information on RDMA over TCP?
+A18: More information on RDMA over TCP is available at (www.rdmaconsortium.org) or from individual founder companies.
+ 
+Q19: What is iWARP?
+A19: iWARP is a computer networking protocol that implements Remote Direct Memory Access (RDMA) for efficient data transfer over Internet Protocol networks. It is a suite of protocols comprised of RDMAP, DDP, and MPA which may be layered above TCP, SCTP, or other transport protocols. Some sources claim iWARP is an acronym meaning “Internet Wide Area RDMA Protocol”. This incorrect and misleading because iWARP was designed for a broad range of environments, including Local Area Networks (LANs), storage networks, data center networks, wide area networks (WANs), etc. iWARP is NOT an acronym. 
