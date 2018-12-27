@@ -1,5 +1,5 @@
 # [TEST SUITE] AVATAR DCT RUNNER
-这个小程序可以用来测试Mellanox RDMA网卡DCT的性能(DCT简介参照RDMA/Dynamically Connected Transport Service)，目前支持时延测试，使用说明如下：
+这个小程序可以用来测试Mellanox RDMA网卡DCT的性能(DCT简介参照Dynamically Connected Transport Service)，目前支持时延测试，使用说明如下：
 ```shell
 $ ./a.out --help           
 usage: ./a.out [options] ... 
