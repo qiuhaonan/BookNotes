@@ -445,13 +445,14 @@ static void mlx5_read_env(struct mlx5_context *ctx)
 	}
 }
 
+/* UAR 是PCI地址空间中的一部分，分配给每个独立的用户进程，方便CPU直接控制网卡，可以用来post 执行或者控制请求给网卡, Mellanox Adapter Programmer's Mannual------QHN*/
 static int get_total_uuars(int page_size)
 {
-	int size = MLX5_DEF_TOT_UUARS;
+	int size = MLX5_DEF_TOT_UUARS; // 快速引用， =16
 	int uuars_in_page;
 
-	uuars_in_page = page_size / MLX5_ADAPTER_PAGE_SIZE * MLX5_NUM_NON_FP_BFREGS_PER_UAR;
-	size = max(uuars_in_page, size);
+	uuars_in_page = page_size / MLX5_ADAPTER_PAGE_SIZE * MLX5_NUM_NON_FP_BFREGS_PER_UAR; // 4096 / 4096 * 2 = 2
+	size = max(uuars_in_page, size); // (2, 16)
 	size = align(size, MLX5_NUM_NON_FP_BFREGS_PER_UAR);
 	if (size > MLX5_MAX_BFREGS)
 		return -ENOMEM;
@@ -550,7 +551,7 @@ static int get_use_mutex(struct ibv_context *context)
 
 static int get_num_low_lat_uuars(int tot_uuars)
 {
-	return max(4, tot_uuars - MLX5_MED_BFREGS_TSHOLD);
+	return max(4, tot_uuars - MLX5_MED_BFREGS_TSHOLD); // (4, 16 - 12) = 4
 }
 
 static int need_uuar_lock(struct mlx5_context *ctx, int uuarn)
@@ -1100,6 +1101,7 @@ static int mlx5_alloc_context(struct verbs_device *vdev,
 
 	mlx5_single_threaded = single_threaded_app(&context->ibv_ctx);
 
+	/* 16 / ( x * 2)*/
 	num_sys_page_map = context->tot_uuars / (context->num_uars_per_page * MLX5_NUM_NON_FP_BFREGS_PER_UAR);
 	for (i = 0; i < num_sys_page_map; ++i) {
 		uar_mapped = 0;

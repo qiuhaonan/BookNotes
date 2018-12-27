@@ -230,18 +230,21 @@ enum {
 	MLX5_STAT_RATE_OFFSET		= 5
 };
 
+/* 2^12 = 4096 ---------------------QHN*/
 enum {
 	MLX5_QP_TABLE_SHIFT		= 12,
 	MLX5_QP_TABLE_MASK		= (1 << MLX5_QP_TABLE_SHIFT) - 1,
 	MLX5_QP_TABLE_SIZE		= 1 << (24 - MLX5_QP_TABLE_SHIFT),
 };
 
+/* 2^12 = 4096 ---------------------QHN*/
 enum {
 	MLX5_SRQ_TABLE_SHIFT		= 12,
 	MLX5_SRQ_TABLE_MASK		= (1 << MLX5_SRQ_TABLE_SHIFT) - 1,
 	MLX5_SRQ_TABLE_SIZE		= 1 << (24 - MLX5_SRQ_TABLE_SHIFT),
 };
 
+/* 2^12 = 4096 ---------------------QHN*/
 enum {
 	MLX5_DCT_TABLE_SHIFT		= 12,
 	MLX5_DCT_TABLE_MASK		= (1 << MLX5_DCT_TABLE_SHIFT) - 1,
@@ -255,7 +258,8 @@ enum {
 enum {
 	MLX5_OPC_MOD_MPW		= 0x01, /* OPC_MOD for LSO_MPW opcode */
 
-	MLX5_OPCODE_SEND_ENABLE		= 0x17,
+	/*跨信道通信---------------------------------------QHN*/
+	MLX5_OPCODE_SEND_ENABLE		= 0x17, 
 	MLX5_OPCODE_RECV_ENABLE		= 0x16,
 	MLX5_OPCODE_CQE_WAIT		= 0x0f,
 	MLX5_OPCODE_TAG_MATCHING	= 0x28,
@@ -287,7 +291,7 @@ enum mlx5_alloc_type {
 
 enum mlx5_mr_type {
 	MLX5_NORMAL_MR	= 0x0,
-	MLX5_ODP_MR	= 0x1,
+	MLX5_ODP_MR	= 0x1, // On demond paging -------------------QHN
 	MLX5_DM_MR	= 0x2,
 };
 
@@ -406,12 +410,12 @@ struct mlx5_context {
 	uint64_t			exp_device_cap_flags; /* Cached from device caps */
 
 	struct mlx5_lock		lock32;
-	struct mlx5_db_page	       *db_list; /*++++++++++++++ QHN*/
+	struct mlx5_db_page	       *db_list; /* doorbell list----------------------QHN*/
 	pthread_mutex_t			db_list_mutex;
 	int				cache_line_size;
 	int				max_sq_desc_sz;
 	int				max_rq_desc_sz;
-	int				max_send_wqebb;
+	int				max_send_wqebb; /* wqe basic blocks ------------ mellanox adapter programmer's mannual-------QHN*/
 	int				max_recv_wr;
 	unsigned			max_srq_recv_wr;
 	int				num_ports;
@@ -437,7 +441,7 @@ struct mlx5_context {
 	struct mlx5_info_ctx		cc;
 	uint8_t                         cqe_version;
 	uint16_t			cqe_comp_max_num;
-	uint16_t			rroce_udp_sport_min;
+	uint16_t			rroce_udp_sport_min; /* RoCEv2 udp ECMP hashing for load-balancing */
 	uint16_t			rroce_udp_sport_max;
 	struct {
 		uint8_t			valid;
@@ -457,7 +461,7 @@ struct mlx5_context {
 	uint32_t			uar_size;
 	uint32_t			eth_min_inline_size;
 	uint64_t			max_dm_size;
-	struct ibv_exp_ooo_caps		ooo_caps;
+	struct ibv_exp_ooo_caps		ooo_caps; /* out of order, in dct QP and raw ethernet QP*/
 	uint8_t				relaxed_packet_ordering_on;
 };
 
@@ -976,6 +980,7 @@ extern int mlx5_use_mutex;
 void dump_wqe(FILE *fp, int idx, int size_16, struct mlx5_qp *qp);
 #endif
 
+/* 对齐到缓存行大小的内存分配 -------------------QHN*/
 static inline void *aligned_calloc(size_t size)
 {
 	void *p;
@@ -998,11 +1003,13 @@ static inline unsigned long align(unsigned long val, unsigned long algn)
 	return (val + algn - 1) & ~(algn - 1);
 }
 
+/* 类似于c++11中的std::align--------------QHN*/
 static inline void *align_ptr(void *p, unsigned long algn)
 {
 	return (void *)align((unsigned long)p, algn);
 }
 
+/* 在结构体中寻找成员*/
 #define to_mxxx(xxx, type)						\
 	((struct mlx5_##type *)					\
 	 ((void *) ib##xxx - offsetof(struct mlx5_##type, ibv_##xxx)))
@@ -1489,6 +1496,7 @@ static inline void mlx5_update_cons_index(struct mlx5_cq *cq)
 	cq->dbrec[MLX5_CQ_SET_CI] = htonl(cq->cons_index & 0xffffff);
 }
 
+/* 设置wqe的控制字段，Mellanox adpater programmer's mannual ------------QHN*/
 static inline void set_ctrl_seg(uint32_t *start, struct ctrl_seg_data *ctrl_seg,
 				uint8_t opcode, uint16_t idx, uint8_t opmod,
 				uint8_t size, uint8_t fm_ce_se, uint32_t imm_invk_umrk)

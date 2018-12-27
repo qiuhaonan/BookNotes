@@ -59,7 +59,7 @@ enum {
 #define MLX5_IB_OPCODE_GET_OP(opcode)       ((opcode) & 0x0000FFFF)
 #define MLX5_IB_OPCODE_GET_ATTR(opcode)     ((opcode) & 0xFF000000)
 
-
+/* verbs_exp.h 中的试验性操作码-----------------------QHN*/
 static const uint32_t mlx5_ib_opcode[] = {
 	[IBV_EXP_WR_SEND]                       = MLX5_IB_OPCODE(MLX5_OPCODE_SEND,                MLX5_OPCODE_BASIC, 0),
 	[IBV_EXP_WR_SEND_WITH_IMM]              = MLX5_IB_OPCODE(MLX5_OPCODE_SEND_IMM,            MLX5_OPCODE_BASIC, MLX5_OPCODE_WITH_IMM),
@@ -82,6 +82,7 @@ static const uint32_t mlx5_ib_opcode[] = {
 	[IBV_EXP_WR_LOCAL_INV]			= MLX5_IB_OPCODE(MLX5_OPCODE_UMR,                 MLX5_OPCODE_BASIC, 0),
 };
 
+/* task任务操作码, cross-channel -------------------QHN */
 enum {
 	MLX5_CALC_UINT64_ADD    = 0x01,
 	MLX5_CALC_FLOAT64_ADD   = 0x02,
@@ -167,6 +168,7 @@ static inline void set_wait_en_seg(void *wqe_seg, uint32_t obj_num, uint32_t cou
 	return;
 }
 
+/* 从receive queue中获取第n个wqe， 计算wqe的偏移量 = wqebb * n ------------------QHN*/
 static inline void *get_recv_wqe(struct mlx5_wq *rq, int n)
 {
 	return rq->buff + (n << rq->wqe_shift);
@@ -222,6 +224,7 @@ static int copy_to_scat(struct mlx5_wqe_data_seg *scat, void *buf, int *size,
 	return IBV_WC_LOC_LEN_ERR;
 }
 
+/* 从QP中取出receive queue，并从中取出wqe的地址，转换成wqe_data_seg，然后拷贝到wqe中 -------------QHN*/
 int mlx5_copy_to_recv_wqe(struct mlx5_qp *qp, int idx, void *buf, int size)
 {
 	struct mlx5_wqe_data_seg *scat;
@@ -331,7 +334,7 @@ int mlx5_copy_to_send_wqe(struct mlx5_qp *qp, int idx, void *buf, int size)
 
 	return copy_to_scat(scat, buf, &size, max, convert2host_endianness);
 }
-
+/* 初始化QP的成员变量 -------------QHN*/
 void mlx5_init_qp_indices(struct mlx5_qp *qp)
 {
 	qp->sq.head	 = 0;
@@ -356,6 +359,7 @@ void mlx5_init_rwq_indices(struct mlx5_rwq *rwq)
 	rwq->rq_enable.head_en_count = 0;
 }
 
+/* 判断当前的wq是否会溢出， 加锁 --------------QHN*/
 static int __mlx5_wq_overflow(int is_rq, struct mlx5_wq *wq, int nreq, struct mlx5_qp *qp) __attribute__((noinline));
 static int __mlx5_wq_overflow(int is_rq, struct mlx5_wq *wq, int nreq, struct mlx5_qp *qp)
 {
@@ -369,6 +373,8 @@ static int __mlx5_wq_overflow(int is_rq, struct mlx5_wq *wq, int nreq, struct ml
 
 	return cur + nreq >= wq->max_post;
 }
+
+/* 判断当前wq是否溢出，不加锁 ------------------QHN*/
 static inline int mlx5_wq_overflow(int is_rq, int nreq, struct mlx5_qp *qp) __attribute__((always_inline));
 static inline int mlx5_wq_overflow(int is_rq, int nreq, struct mlx5_qp *qp)
 {
@@ -451,6 +457,7 @@ static int set_ipoib_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
 	return size;
 }
 
+/* 数据报通信，DCT & UD------------------------QHN */
 static int set_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
 			    struct ibv_exp_send_wr *wr)
 {
@@ -466,6 +473,7 @@ static int set_datagram_seg(struct mlx5_wqe_datagram_seg *dseg,
 	return size;
 }
 
+/* dci 段 ---------------------QHN */
 static int set_dci_seg(struct mlx5_wqe_datagram_seg *dseg,
 		       struct ibv_exp_send_wr *wr)
 {
@@ -481,6 +489,7 @@ static int set_dci_seg(struct mlx5_wqe_datagram_seg *dseg,
 	return size;
 }
 
+/* 设置wqe数据段, Mellanox Adpater Programmer's Mannual 7.4.4.1.4-------------------QHN */
 static int set_odp_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ibv_sge *sg,
 				struct mlx5_qp *qp) __attribute__((noinline));
 static int set_odp_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ibv_sge *sg,
@@ -506,6 +515,7 @@ static int set_odp_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ibv_sge *
 	return 0;
 }
 
+/* 设置wqe数据段, Mellanox Adpater Programmer's Mannual 7.4.4.1.4-------------------QHN */
 static inline int set_data_ptr_seg(struct mlx5_wqe_data_seg *dseg, struct ibv_sge *sg,
 			    struct mlx5_qp *qp,
 			    int offset) __attribute__((always_inline));
@@ -539,6 +549,7 @@ static uint32_t send_ieth(struct ibv_exp_send_wr *wr)
 				wr->ex.imm_data : 0;
 }
 
+/* 当send wr设置inline模式时，把数据拷贝到inline的数据段， 直接通过CPU的MMIO写到网卡中 --------------------QHN */
 static inline int set_data_inl_seg(struct mlx5_qp *qp, int num_sge, struct ibv_sge *sg_list,
 		     void *wqe, int *sz,
 		     int idx, int offset) __attribute__((always_inline));
@@ -589,6 +600,7 @@ static inline int set_data_inl_seg(struct mlx5_qp *qp, int num_sge, struct ibv_s
 	return 0;
 }
 
+/* 当send wr设置非inline模式时，把元数据拷贝到元数据段， 通过DMA写到网卡中 --------------------QHN */
 static inline int set_data_non_inl_seg(struct mlx5_qp *qp, int num_sge, struct ibv_sge *sg_list,
 			 void *wqe, int *sz,
 			 int idx, int offset, int is_tso) __attribute__((always_inline));
@@ -669,6 +681,7 @@ static int set_data_atom_seg(struct mlx5_qp *qp, int num_sge, struct ibv_sge *sg
 	return 0;
 }
 
+/* 一般地设置数据段函数， 数据可能是inline, atomic 或 正常的元数据段 ------------------ QHN */
 static inline int set_data_seg(struct mlx5_qp *qp, void *seg, int *sz, int is_inl,
 		 int num_sge, struct ibv_sge *sg_list, int atom_arg,
 		 int idx, int offset, int is_tso) __attribute__((always_inline));
@@ -1040,6 +1053,7 @@ static uint8_t get_fence(uint8_t fence, struct ibv_exp_send_wr *wr)
 	}
 }
 
+/* 设置wqe的控制字段，基本固定， Mellanox Adapter Programmer's Mannual 7.4 -----------QHN */
 void mlx5_build_ctrl_seg_data(struct mlx5_qp *qp, uint32_t qp_num)
 {
 	uint8_t *tbl = qp->ctrl_seg.fm_ce_se_tbl;

@@ -242,6 +242,7 @@ struct mlx5_create_srq_ex {
 	__u32                           reserved1;
 };
 
+/* real QP, Mellanox Adapter Programmer's Mannual 7.4--------QHN*/
 struct mlx5_drv_create_qp {
 	__u64				buf_addr;
 	__u64				db_addr;
