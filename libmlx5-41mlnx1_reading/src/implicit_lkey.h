@@ -35,6 +35,10 @@
 
 #include <stdint.h>
 
+/* 为隐式按需换页设计， on demand paging, ODP, Implicit ODP, 
+applications can create a memory key that covers the entire address space of a process. 
+This relieves the application from the burden of memory registration
+as it allows it to use a single memory key for all IO accesses.*/
 
 #define ODP_GLOBAL_R_LKEY 0x00000101
 #define ODP_GLOBAL_W_LKEY 0x00000102

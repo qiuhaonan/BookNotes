@@ -2121,6 +2121,7 @@ static int __mlx5_post_send_one_rc(struct ibv_exp_send_wr *wr,
 	}
 }
 
+/* 为新的post选择动作函数-------------------------QHN*/
 void mlx5_update_post_send_one(struct mlx5_qp *qp, enum ibv_qp_state qp_state, enum ibv_qp_type	qp_type)
 {
 	if (qp_state <  IBV_QPS_RTS) {
@@ -2177,6 +2178,7 @@ static inline int __mlx5_post_send(struct ibv_qp *ibqp, struct ibv_exp_send_wr *
 #endif
 	mlx5_lock(&qp->sq.lock);
 
+	/* 遍历wr list中的所有wr -----------------------QHN */
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
 		idx = qp->gen_data.scur_post & (qp->sq.wqe_cnt - 1);
 		seg = mlx5_get_send_wqe(qp, idx);
@@ -2201,8 +2203,7 @@ static inline int __mlx5_post_send(struct ibv_qp *ibqp, struct ibv_exp_send_wr *
 			goto out;
 		}
 
-
-
+		/* post_send_one指向的是某一个特定类型的post_send函数 -----------------QHN */
 		err = qp->gen_data.post_send_one(wr, qp, exp_send_flags, seg, &size);
 		if (unlikely(err)) {
 			errno = err;
@@ -2210,8 +2211,7 @@ static inline int __mlx5_post_send(struct ibv_qp *ibqp, struct ibv_exp_send_wr *
 			goto out;
 		}
 
-
-
+		/* 更改发送队列中wqe的首指针， 即可用wqe的起始指针----------------------QHN */
 		qp->sq.wrid[idx] = wr->wr_id;
 		qp->gen_data.wqe_head[idx] = qp->sq.head + nreq;
 		qp->gen_data.scur_post += DIV_ROUND_UP(size * 16, MLX5_SEND_WQE_BB);
@@ -2239,6 +2239,7 @@ out:
 			goto post_send_no_db;
 		}
 
+		/* blueflame 方法进行ringdoorbell ------------------------QHN */
 		__ring_db(qp, qp->gen_data.bf->db_method, qp->gen_data.scur_post & 0xffff, wqe2ring, (size + 3) / 4);
 	}
 
@@ -2439,6 +2440,7 @@ static void set_sig_seg(struct mlx5_qp *qp, struct mlx5_rwqe_sig *sig,
 	sig->signature = ~sign;
 }
 
+/* post receive wr --> wqe -----------------------QHN */
 int mlx5_post_recv(struct ibv_qp *ibqp, struct ibv_recv_wr *wr,
 		   struct ibv_recv_wr **bad_wr)
 {
@@ -2576,6 +2578,7 @@ void mlx5_clear_rsc(struct mlx5_context *ctx, uint32_t rsn)
 		ctx->rsc_table[tind].table[rsn & MLX5_QP_TABLE_MASK] = NULL;
 }
 
+/* offload计算wr，称为task --------------------------QHN */
 int mlx5_post_task(struct ibv_context *context,
 		   struct ibv_exp_task *task_list,
 		   struct ibv_exp_task **bad_task)

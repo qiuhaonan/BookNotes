@@ -44,6 +44,7 @@
 #include "doorbell.h"
 #include "wqe.h"
 
+/* reading over ---------------------------QHN */
 static void *get_wqe(struct mlx5_srq *srq, int n)
 {
 	return srq->buf.buf + (n << srq->wqe_shift);

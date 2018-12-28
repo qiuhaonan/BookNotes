@@ -197,6 +197,7 @@ static inline int __ring_db(struct mlx5_qp *qp, const int db_method, uint32_t cu
 		bf->offset ^= bf->buf_size;
 		break;
 
+	/* OSDI'2018 上海交大 陈海波， 8个buf在同一个pd下面共享 --------------------------QHN */
 	case MLX5_DB_METHOD_BF:
 		/* The QP has blue-flame that may be shared by other QPs */
 

@@ -1406,6 +1406,7 @@ int mlx5_exp_peer_abort_peek_cq(struct ibv_cq *ibcq,
 	return 0;
 }
 
+/* busy polling cq -------------------- QHN */
 static inline int poll_cq(struct ibv_cq *ibcq, int ne, struct ibv_exp_wc *wc,
 			  uint32_t wc_size, int cqe_ver) __attribute__((always_inline));
 static inline int poll_cq(struct ibv_cq *ibcq, int ne, struct ibv_exp_wc *wc,
@@ -1485,6 +1486,7 @@ int mlx5_poll_cq_ex_1(struct ibv_cq *ibcq, int ne,
 	return poll_cq(ibcq, ne, wc, wc_size, 1);
 }
 
+/* doorbell record 在系统内存中，而doorbell的寄存器在设备上，需要通过MMIO来写doorbell才能告诉设备，主机上有请求的到来 ----------- QHN */
 int mlx5_arm_cq(struct ibv_cq *ibvcq, int solicited)
 {
 	struct mlx5_cq *cq = to_mcq(ibvcq);

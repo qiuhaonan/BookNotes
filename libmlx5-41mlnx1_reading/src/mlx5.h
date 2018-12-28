@@ -692,6 +692,7 @@ enum mlx5_db_method {
 	MLX5_DB_METHOD_DB
 };
 
+/* blueflame ----------------------QHN */
 struct mlx5_bf {
 	void			       *reg;
 	int				need_lock;
@@ -753,6 +754,7 @@ struct general_data_hot {
 	void			*sqstart;
 	void			*sqend;
 	volatile uint32_t	*db;
+	/* blueflame -------------------------QHN */
 	struct mlx5_bf		*bf;
 	uint32_t		 scur_post;
 	/* Used for burst_family interface, keeps the last posted wqe */

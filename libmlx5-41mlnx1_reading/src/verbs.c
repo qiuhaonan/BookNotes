@@ -51,6 +51,8 @@
 #include "mlx5-abi.h"
 #include "wqe.h"
 
+/* reading over -------------- QHN */
+
 int mlx5_single_threaded = 0;
 int mlx5_use_mutex;
 

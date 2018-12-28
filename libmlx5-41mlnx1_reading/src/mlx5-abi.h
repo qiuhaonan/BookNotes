@@ -38,6 +38,8 @@
 #define MLX5_UVERBS_MIN_ABI_VERSION	1
 #define MLX5_UVERBS_MAX_ABI_VERSION	1
 
+/* reading over --------------------QHN */
+
 enum {
 	MLX5_QP_FLAG_SIGNATURE		= 1 << 0,
 };

@@ -42,6 +42,8 @@
 
 #include "mlx5.h"
 
+/* reading over ---------------- QHN*/
+
 struct mlx5_db_page {
 	struct mlx5_db_page	       *prev, *next;
 	struct mlx5_buf			buf;
