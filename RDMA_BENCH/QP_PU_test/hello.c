@@ -80,6 +80,7 @@ struct resources {
     void				    *tx_buf;           // data buffer for sending 
     void				    *rx_buf;           // data buffer for receiving
     int             qp_number;                    // the total number of established QP
+    int             batch_signal;                 // a cqe every batch_signal x wqes
     int             is_local_cacheline_aligned;   // if aligning the start address of local sending buffer to cacheline
     int             is_remote_cacheline_aligned;  // if aligning the start address of remote sending buffer to cacheline
     int             local_cacheline_miss_counter; // the counter of WQEs that the start address of local sending buffers unaligned to cacheline 
@@ -286,6 +287,7 @@ static void resources_init(struct resources *res)
     res->tx_buf	=NULL;
     res->rx_buf =NULL;
     res->qp_number = 1;
+    res->batch_signal = 1;
     res->is_local_cacheline_aligned = 0;
     res->is_remote_cacheline_aligned = 0;
     res->local_aligned_offset = 0;
@@ -794,7 +796,7 @@ static void run_iteration(struct resources* res)
     long start, end;
     printf("iteration = %d, qp_num = %d, data_size = %d\n", res->iteration, res->qp_number, res->io_size);
     struct ibv_send_wr *bad_wr;
-    int qp_index = 0, batch_signal = 32, qp_sig_index = 0;
+    int qp_index = 0, batch_signal = res->batch_signal, qp_sig_index = 0;
     int outer_iter_total = res->iteration / batch_signal;
     start = tick(0);
     for(int i=0; i<outer_iter_total; ++i) {
@@ -873,6 +875,7 @@ int main(int argc,char* argv[])
             {.name="gid-index",.has_arg=1,	.val='g'},
             {.name="verbose", .has_arg=0, 	.val='v'},
             {.name="connection-num", .has_arg=1, .val='q'},
+            {.name="batch-signal", .has_arg=1, .val='B'},
             {.name="type", .has_arg=0, .val='T'},
             {.name="iteration",.has_arg=1,	.val='I'},
             {.name="ib-dev",.has_arg=1,	.val='d'},
@@ -884,7 +887,7 @@ int main(int argc,char* argv[])
             {.name="tx-depth",.has_arg=1,.val='P'},
             {.name=NULL,	.has_arg=0,	.val='\0'}
         };
-        c=getopt_long(argc,argv,"p:m:o:b:t:g:vI:d:i:rweTP:hALRDq:",long_options,NULL);
+        c=getopt_long(argc,argv,"p:m:o:b:t:g:vI:d:i:rweTP:hALRDq:B:",long_options,NULL);
         if(c==-1)
             break;
         switch(c) {
@@ -899,6 +902,9 @@ int main(int argc,char* argv[])
             break;
         case 'b':
             res.batch_size=strtoul(optarg,NULL,0);
+            break;
+        case 'B':
+            res.batch_signal=strtoul(optarg,NULL,0);
             break;
         case 'q':
             res.qp_number=strtoul(optarg, NULL, 0);

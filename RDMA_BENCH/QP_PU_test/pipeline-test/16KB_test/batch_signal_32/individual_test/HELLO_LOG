@@ -1,0 +1,12 @@
+tx_depth:128
+------------------------Test Parameters-------------------------------
+Use HugeTable = 1
+Use Local Cacheline Aligned = 1
+Use Remote Cacheline Aligned = 1
+-----------------------------END--------------------------------------
+Register 2097152 Bytes memory, the IO buffer size:16384 Bytes
+In HugeTable, for aligning to cacheline size, the local tx buffer should offset 0 bytes.
+For aligning to cacheline size, the remote buffer should be offset 0 bytes.
+iteration = 1048576, qp_num = 1, data_size = 16384
+Post 16384.000000 MB traffic on total 1 x qp cost 1648445 us 
+normal exit, PID: 9750 transfer 16384 Bytes, local cacheline unaligned counter : 0, remote cacheline unaligned counter : 0 
