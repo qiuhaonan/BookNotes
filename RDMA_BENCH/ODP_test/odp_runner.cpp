@@ -94,6 +94,7 @@ class infiniband_odp
 		infiniband_odp(std::string name, std::string server, int ib_port, int tcp_port, int mem_size, int io_size, int batch, int gid_index, int iter, int cm, int huge_page);
 		int init_device();
 		int prefetch_mr_test();
+		int prefetch_mr(void* addr, int length);
 		int init_server_socket();
 		int init_client_socket();
 		int create_tx_rx_queue();
@@ -216,26 +217,8 @@ int infiniband_odp::init_device()
 	}
 	local_info.mem_rkey = mr->rkey;
 
-    struct ibv_exp_prefetch_attr prefetch_attr;
-    prefetch_attr.flags = IBV_EXP_PREFETCH_WRITE_ACCESS;
-    prefetch_attr.addr = mem_addr;
-    prefetch_attr.length = local_info.mem_len;
-    prefetch_attr.comp_mask = 0;
-    cout << "prefetch_attr.length" << local_info.mem_len << endl; 
-    struct timeval prev, next;
-	auto start = std::chrono::high_resolution_clock::now();
-    int ret = ibv_exp_prefetch_mr(mr, &prefetch_attr);
-	auto end = std::chrono::high_resolution_clock::now();
-    if(ret)
-    {
-        cerr << "prefetch mr failed, errno : " << ret << endl;
-    }
-    else
-    {
-        double lat = std::chrono::duration_cast<std::chrono::microseconds>(end-start).count();
-        cerr << "prefetch mr succeed, cost " << lat << " us" << endl;
-    }
-
+	prefetch_mr(mem_addr, local_info.mem_len);
+    
 	cq = ibv_create_cq(ctx, 128, NULL, NULL, 0);
 	if (!cq) {
 		cerr << "failed to create cq" << endl;
@@ -574,6 +557,17 @@ uint64_t infiniband_odp::choose_next_addr()
 	}
 }
 
+int infiniband_odp::prefetch_mr(void* addr, int length)
+{
+	struct ibv_exp_prefetch_attr prefetch_attr;
+	prefetch_attr.flags = IBV_EXP_PREFETCH_WRITE_ACCESS;
+	prefetch_attr.addr = addr;
+	prefetch_attr.length = length;
+	prefetch_attr.comp_mask = 0;
+	ibv_exp_prefetch_mr(mr, &prefetch_attr);
+	return 0;
+}
+
 int infiniband_odp::run_test()
 {
 	struct ibv_send_wr wr[batch_size];
@@ -597,6 +591,7 @@ int infiniband_odp::run_test()
 			wr[j].opcode = IBV_WR_RDMA_WRITE;
 			wr[j].send_flags = 0;
 			wr[j].next = (j == (batch_size-1))? nullptr : &wr[j+1];
+			prefetch_mr(sg_list[j].addr, io_size);
 		}
 		wr[batch_size-1].send_flags = IBV_SEND_SIGNALED;
 
