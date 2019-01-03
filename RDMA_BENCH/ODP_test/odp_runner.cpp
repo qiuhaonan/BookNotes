@@ -44,6 +44,7 @@ static inline uint64_t htonll(uint64_t x)
 
 #define SEQ 0
 #define RAND 1
+#define ODP_ONLY 2
 #define MALLOC 0
 #define MMAP 1
 
@@ -92,6 +93,7 @@ class infiniband_odp
 	public:
 		infiniband_odp(std::string name, std::string server, int ib_port, int tcp_port, int mem_size, int io_size, int batch, int gid_index, int iter, int cm, int huge_page);
 		int init_device();
+		int prefetch_mr_test();
 		int init_server_socket();
 		int init_client_socket();
 		int create_tx_rx_queue();
@@ -203,8 +205,8 @@ int infiniband_odp::init_device()
 	in.pd = pd;
 	in.addr = 0;
 	in.length = IBV_EXP_IMPLICIT_MR_SIZE;
-    cout << "IBV_EXP_IMPLICIT_MR_SIZE:" << hex << IBV_EXP_IMPLICIT_MR_SIZE << dec << endl;
-	in.exp_access = IBV_EXP_ACCESS_ON_DEMAND | IBV_EXP_ACCESS_LOCAL_WRITE | IBV_EXP_ACCESS_REMOTE_WRITE | IBV_EXP_ACCESS_REMOTE_READ;
+    //cout << "IBV_EXP_IMPLICIT_MR_SIZE:" << hex << IBV_EXP_IMPLICIT_MR_SIZE << dec << endl;
+	in.exp_access = IBV_EXP_ACCESS_ON_DEMAND | IBV_EXP_ACCESS_LOCAL_WRITE | IBV_EXP_ACCESS_REMOTE_WRITE ;
 	in.comp_mask = 0;
 
 	mr = ibv_exp_reg_mr(&in);
@@ -219,6 +221,8 @@ int infiniband_odp::init_device()
     prefetch_attr.addr = mem_addr;
     prefetch_attr.length = local_info.mem_len;
     prefetch_attr.comp_mask = 0;
+    cout << "prefetch_attr.length" << local_info.mem_len << endl; 
+    struct timeval prev, next;
 	auto start = std::chrono::high_resolution_clock::now();
     int ret = ibv_exp_prefetch_mr(mr, &prefetch_attr);
 	auto end = std::chrono::high_resolution_clock::now();
@@ -245,6 +249,41 @@ int infiniband_odp::init_device()
 			cerr << "can't read sgid of index " << gid_index << endl;
 			return 1;
 		}
+	}
+}
+
+int infiniband_odp::prefetch_mr_test()
+{
+    //auto addr = mmap(NULL, 1073741824, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);;
+	for(long mem_size = 2; mem_size <= 1073741824; mem_size = mem_size * 2)
+	{
+		auto addr = malloc(mem_size);
+        //auto addr = memalign(4096, mem_size);
+        //auto addr = memalign(64, mem_size);
+		memset(addr, 'a', mem_size);
+		struct ibv_exp_prefetch_attr prefetch_attr;
+		prefetch_attr.flags = IBV_EXP_PREFETCH_WRITE_ACCESS;
+		prefetch_attr.addr = addr;
+		prefetch_attr.length = mem_size;
+		prefetch_attr.comp_mask = 0;
+		for(int test_index = 0; test_index < 100; ++test_index)
+		{
+			auto start = std::chrono::high_resolution_clock::now();
+			int ret = ibv_exp_prefetch_mr(mr, &prefetch_attr);
+			auto end = std::chrono::high_resolution_clock::now();
+			if (ret)
+			{
+				cerr << "prefetch mr failed, errno : " << ret << endl;
+				return -1;
+			}
+			else
+			{
+				double lat = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+				cout << "prefetch mr succeed, size="<< mem_size<< " Bytes, latency=" << lat << " us" << endl;
+			}
+		}
+		cout << endl;
+		free(addr);
 	}
 }
 
@@ -642,12 +681,12 @@ int main(int argc, char* argv[])
     opt.add<std::string>("server", 's', "server name", false, "");
     opt.add<int>("ib", 'i', "ib port", false, 1, cmdline::range(1, 2));
     opt.add<int>("tcp", 't', "tcp port", false, 18515, cmdline::range(1025, 65536));
-    opt.add<int>("memory", 'm', "memory size", false, 2097152, cmdline::range(4096, 1073741824));
+    opt.add<int>("memory", 'm', "memory size", false, 2097152, cmdline::range(64, 1073741824));
     opt.add<int>("data", 'S', "data size", false, 1024, cmdline::range(8, 1048576));
     opt.add<int>("batch", 'n', "batch size", false, 1, cmdline::range(1, 1024));
     opt.add<int>("gid", 'g', "gid index", false, 3);
     opt.add<int>("iteration", 'I', "Iteration", false, 1000, cmdline::range(1, 10000000));
-    opt.add<int>("mode", 'M', "Communication Mode", false, SEQ, cmdline::range(0, 1));
+    opt.add<int>("mode", 'M', "Communication Mode", false, SEQ, cmdline::range(0, 2));
     opt.add<int>("huge", 'H', "Huge Page", false, 0, cmdline::range(0,1));
     opt.parse_check(argc, argv);
     
@@ -665,16 +704,23 @@ int main(int argc, char* argv[])
     infiniband_odp device(device_name, server_name, ib_port, tcp_port, mem_size, io_size, batch_size, gid_index, iteration, cm, huge_page);
     
     device.init_device();
-	if(server_name.empty())
-		device.init_server_socket();
+	if(cm == ODP_ONLY)
+	{
+		device.prefetch_mr_test();
+	}
 	else
-		device.init_client_socket();
-	device.create_tx_rx_queue();
-	device.exchange_info();
-	device.to_rts();
-    if(server_name.empty())
-    	device.run_test();
-	device.syn();
+	{
+		if (server_name.empty())
+			device.init_server_socket();
+		else
+			device.init_client_socket();
+		device.create_tx_rx_queue();
+		device.exchange_info();
+		device.to_rts();
+		if (server_name.empty())
+			device.run_test();
+		device.syn();
+	}
 
     return 0;
 }
