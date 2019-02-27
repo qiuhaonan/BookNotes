@@ -2,6 +2,8 @@
 #include <vector>
 #include <tuple>
 #include <chrono>
+#include <future>
+#include <fstream>
 #include <infiniband/verbs.h>
 #include <sys/socket.h>
 #include <sys/mman.h>
@@ -15,8 +17,12 @@
 #include <byteswap.h>
 #include <sys/time.h>
 #include <errno.h>
+#include <string.h>
+#include <cassert>
 
 #include "cmdline.h"
+
+//#define POST_ALL 
 
 using namespace std;
 
@@ -45,8 +51,12 @@ static inline uint64_t htonll(uint64_t x)
 #define SEQ 0
 #define RAND 1
 #define ODP_ONLY 2
+#define ASYNC_ODP_ONLY 3
+
 #define MALLOC 0
 #define MMAP 1
+#define ODP 0
+#define REG 1
 
 struct memory_info
 {
@@ -85,15 +95,17 @@ class infiniband_odp
 		int 				iteration;
         int                 communication_mode;
         int                 huge_page;
+        int                 memory_type;
 		uint64_t 			old_offset;
 		uint16_t			gid_index;
 		union ibv_gid 		dgid;
 		union ibv_gid 		sgid;
 		
 	public:
-		infiniband_odp(std::string name, std::string server, int ib_port, int tcp_port, int mem_size, int io_size, int batch, int gid_index, int iter, int cm, int huge_page);
+		infiniband_odp(std::string name, std::string server, int ib_port, int tcp_port, int mem_size, int io_size, int batch, int gid_index, int iter, int cm, int huge_page, int recvodp);
 		int init_device();
 		int prefetch_mr_test();
+        int async_prefetch_mr_test();
 		int prefetch_mr(void* addr, int length);
 		int init_server_socket();
 		int init_client_socket();
@@ -101,16 +113,19 @@ class infiniband_odp
 		int to_rts();
 		int exchange_info();
 		uint64_t choose_next_addr();
+        int post_all(struct ibv_send_wr* wr, struct ibv_sge* sg_list);
+        int post_pipeline(struct ibv_send_wr* wr, struct ibv_sge* sg_list);
 		int run_test();
+        void to_file(std::vector<double>& data);
 		void gid_to_wire_gid(const union ibv_gid* gid, char wgid[]);
 		void wire_gid_to_gid(const char* wgid, union ibv_gid* gid);
 		void syn();
 };
 
 infiniband_odp::infiniband_odp(std::string name, std::string server, int _ib_port, int _tcp_port, 
-							   int _mem_size, int _io_size, int _batch_size, int _gid_index, int iter, int cm, int _huge_page):
+							   int _mem_size, int _io_size, int _batch_size, int _gid_index, int iter, int cm, int _huge_page, int _memory_type):
 	device_name(name), server_name(server), ib_port(_ib_port), tcp_port(_tcp_port), io_size(_io_size), 
-	batch_size(_batch_size), gid_index(_gid_index), iteration(iter), communication_mode(cm), huge_page(_huge_page)
+	batch_size(_batch_size), gid_index(_gid_index), iteration(iter), communication_mode(cm), huge_page(_huge_page), memory_type(_memory_type)
 {
 	ctx = nullptr;
 	qp = nullptr;
@@ -201,25 +216,34 @@ int infiniband_odp::init_device()
 		cout << device_name << " does not support ODP" << endl;
 	}
 
-	struct ibv_exp_reg_mr_in in;
-	memset(&in, 0, sizeof(in));
-	in.pd = pd;
-	in.addr = 0;
-	in.length = IBV_EXP_IMPLICIT_MR_SIZE;
-    //cout << "IBV_EXP_IMPLICIT_MR_SIZE:" << hex << IBV_EXP_IMPLICIT_MR_SIZE << dec << endl;
-	in.exp_access = IBV_EXP_ACCESS_ON_DEMAND | IBV_EXP_ACCESS_LOCAL_WRITE | IBV_EXP_ACCESS_REMOTE_WRITE ;
-	in.comp_mask = 0;
+    if(memory_type == ODP)
+    {
+	  struct ibv_exp_reg_mr_in in;
+	  memset(&in, 0, sizeof(in));
+	  in.pd = pd;
+	  in.addr = 0;
+	  in.length = IBV_EXP_IMPLICIT_MR_SIZE;
+      //cout << "IBV_EXP_IMPLICIT_MR_SIZE:" << hex << IBV_EXP_IMPLICIT_MR_SIZE << dec << endl;
+	  in.exp_access = IBV_EXP_ACCESS_ON_DEMAND | IBV_EXP_ACCESS_LOCAL_WRITE | IBV_EXP_ACCESS_REMOTE_WRITE ;
+	  in.comp_mask = 0;
 
-	mr = ibv_exp_reg_mr(&in);
+	  mr = ibv_exp_reg_mr(&in);
+      prefetch_mr(mem_addr, local_info.mem_len);
+      std::cout << "memory type : ODP" << std::endl;
+    }
+    else
+    {
+      mr = ibv_reg_mr(pd, mem_addr, local_info.mem_len, IBV_ACCESS_LOCAL_WRITE | IBV_ACCESS_REMOTE_WRITE);
+      std::cout << "memory type : Registered" << std::endl;
+    }
+
 	if (!mr) {
 		cerr << "failed to create mr" << endl;
 		return 1;
 	}
 	local_info.mem_rkey = mr->rkey;
-
-	prefetch_mr(mem_addr, local_info.mem_len);
-    
-	cq = ibv_create_cq(ctx, 128, NULL, NULL, 0);
+	
+    cq = ibv_create_cq(ctx, 128, NULL, NULL, 0);
 	if (!cq) {
 		cerr << "failed to create cq" << endl;
 		return -1;
@@ -232,6 +256,32 @@ int infiniband_odp::init_device()
 			cerr << "can't read sgid of index " << gid_index << endl;
 			return 1;
 		}
+	}
+}
+
+int infiniband_odp::async_prefetch_mr_test()
+{
+	for(long mem_size = 2; mem_size <= 1073741824; mem_size = mem_size * 2)
+	{
+        auto addr = memalign(4096, mem_size);
+		memset(addr, 'a', mem_size);
+		for(int test_index = 0; test_index < 100; ++test_index)
+		{
+			auto start = std::chrono::high_resolution_clock::now();
+            auto handle = std::async(std::launch::async, [=](){
+                int ret = prefetch_mr(addr, mem_size);
+                return ret;
+            });
+			auto mid = std::chrono::high_resolution_clock::now();
+            auto ret = handle.get();
+			auto end = std::chrono::high_resolution_clock::now();
+
+			double call_lat = std::chrono::duration_cast<std::chrono::microseconds>(mid - start).count();
+			double wait_lat = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+			cout << "prefetch mr ret="<<ret<<", size="<< mem_size<< " Bytes, call_latency=" << call_lat << " us, wait_latency=" << wait_lat << " us" << endl;
+		}
+		cout << endl;
+		free(addr);
 	}
 }
 
@@ -438,8 +488,10 @@ int infiniband_odp::exchange_info()
 		local_memory_info.qp_number = htonl(local_info.qp_number);
         cout << "Local QP Number:" << local_info.qp_number << endl;
 		gid_to_wire_gid(&sgid, local_memory_info.gid);
+        cout << "local gid len:" << strlen(local_memory_info.gid) << endl;
 
 		n = write(socket_fd, &local_memory_info, sizeof(memory_info));
+        cout << "write len:" << n << endl;
 		if ( n != sizeof(memory_info))
 		{
 			cerr << "Couldn't send local address" << endl;
@@ -453,11 +505,13 @@ int infiniband_odp::exchange_info()
 			cerr << "client read: " << n << "/"<< sizeof(memory_info) << ": Couldn't read complete info" << endl;
 			return -1;
 		}
+        cout << "read len:" << n << endl;
 		remote_info.mem_addr_val = ntohll(remote_memory_info.mem_addr_val);
 		remote_info.mem_len = ntohl(remote_memory_info.mem_len);
 		remote_info.mem_rkey = ntohl(remote_memory_info.mem_rkey);
 		remote_info.qp_number = ntohl(remote_memory_info.qp_number);
         cout << "Remote QP Number:" << remote_info.qp_number << endl;
+        cout << "remote gid len:" << strlen(remote_memory_info.gid) << endl; 
 		wire_gid_to_gid(remote_memory_info.gid, &dgid);
 	}
 }
@@ -564,72 +618,133 @@ int infiniband_odp::prefetch_mr(void* addr, int length)
 	prefetch_attr.addr = addr;
 	prefetch_attr.length = length;
 	prefetch_attr.comp_mask = 0;
-	ibv_exp_prefetch_mr(mr, &prefetch_attr);
-	return 0;
+	return ibv_exp_prefetch_mr(mr, &prefetch_attr);
+}
+
+int infiniband_odp::post_all(struct ibv_send_wr* wr, struct ibv_sge* sg_list)
+{
+	int poll_cnt = 0;
+	struct ibv_send_wr *bad_wr;
+	for(int j = 0; j < batch_size; ++j)
+	{
+		uint64_t offset = choose_next_addr();
+		memset(&wr[j], 0, sizeof(struct ibv_send_wr));
+		wr[j].num_sge = 1;
+		sg_list[j].addr = (uint64_t)((unsigned long)mem_addr + offset);
+		sg_list[j].length = io_size;
+		sg_list[j].lkey = mr->lkey;
+		wr[j].sg_list = &sg_list[j];
+		wr[j].wr.rdma.rkey = remote_info.mem_rkey;
+		wr[j].wr.rdma.remote_addr = remote_info.mem_addr_val + offset;
+		wr[j].opcode = IBV_WR_RDMA_WRITE;
+		wr[j].send_flags = 0;
+		wr[j].next = (j == (batch_size-1))? nullptr : &wr[j+1];
+        void* target_addr = (void*)((char*)mem_addr + offset);
+		if(memory_type == ODP)
+          prefetch_mr(target_addr, io_size);
+	}
+	wr[batch_size-1].send_flags = IBV_SEND_SIGNALED;
+
+	int err = ibv_post_send(qp, &wr[0], &bad_wr);
+    
+	if (err) {
+		cerr << "failed to post send request" << endl;
+		return -1;
+	} else {
+		int num;
+		struct ibv_wc wc;
+		do {
+			num = ibv_poll_cq(cq, 1, &wc);
+			if (num < 0) {
+				cerr << "failed to poll cq" << endl;
+				return -1;
+			} else if (num) {
+				poll_cnt++;
+			}
+		} while (!num);
+		if (wc.status != IBV_WC_SUCCESS) {
+			cerr << "completion with error " << wc.status << endl;
+			return -1;
+	    }
+    }
+    return 0;
+}
+
+int infiniband_odp::post_pipeline(struct ibv_send_wr* wr, struct ibv_sge* sg_list)
+{
+	int poll_cnt = 0;
+	struct ibv_send_wr *bad_wr;
+	for(int j = 0; j < batch_size; ++j)
+	{
+		uint64_t offset = choose_next_addr();
+		memset(&wr[j], 0, sizeof(struct ibv_send_wr));
+		wr[j].num_sge = 1;
+		sg_list[j].addr = (uint64_t)((unsigned long)mem_addr + offset);
+		sg_list[j].length = io_size;
+		sg_list[j].lkey = mr->lkey;
+		wr[j].sg_list = &sg_list[j];
+		wr[j].wr.rdma.rkey = remote_info.mem_rkey;
+		wr[j].wr.rdma.remote_addr = remote_info.mem_addr_val + offset;
+		wr[j].opcode = IBV_WR_RDMA_WRITE;
+		wr[j].send_flags = (j == (batch_size-1))? IBV_SEND_SIGNALED : 0;
+		wr[j].next = nullptr;
+	    int err = ibv_post_send(qp, &wr[j], &bad_wr);
+	    if (err) {
+		    cerr << "failed to post send request" << endl;
+    		return -1;
+	    }
+        void* target_addr = (void*)((char*)mem_addr + offset);
+		//prefetch_mr(target_addr, io_size);
+	}
+
+	int num;
+	struct ibv_wc wc;
+	do {
+		num = ibv_poll_cq(cq, 1, &wc);
+		if (num < 0) {
+			cerr << "failed to poll cq" << endl;
+			return -1;
+		} else if (num) {
+			poll_cnt++;
+		}
+	} while (!num);
+	if (wc.status != IBV_WC_SUCCESS) {
+		cerr << "completion with error " << wc.status << endl;
+		return -1;
+    }
+    return 0;
 }
 
 int infiniband_odp::run_test()
 {
 	struct ibv_send_wr wr[batch_size];
-	struct ibv_send_wr *bad_wr;
 	struct ibv_sge	sg_list[batch_size];
-	int err, i;
-	int poll_cnt = 0;
+	int i;
     
+    std::vector<double> data;
 	for (i = 0; i < iteration; ++i) {
-		for(int j = 0; j < batch_size; ++j)
-		{
-			uint64_t offset = choose_next_addr();
-			memset(&wr[j], 0, sizeof(struct ibv_send_wr));
-			wr[j].num_sge = 1;
-			sg_list[j].addr = (uint64_t)((unsigned long)mem_addr + offset);
-			sg_list[j].length = io_size;
-			sg_list[j].lkey = mr->lkey;
-			wr[j].sg_list = &sg_list[j];
-			wr[j].wr.rdma.rkey = remote_info.mem_rkey;
-			wr[j].wr.rdma.remote_addr = remote_info.mem_addr_val + offset;
-			wr[j].opcode = IBV_WR_RDMA_WRITE;
-			wr[j].send_flags = 0;
-			wr[j].next = (j == (batch_size-1))? nullptr : &wr[j+1];
-			prefetch_mr(sg_list[j].addr, io_size);
-		}
-		wr[batch_size-1].send_flags = IBV_SEND_SIGNALED;
-
-		auto start = std::chrono::high_resolution_clock::now();
-		err = ibv_post_send(qp, &wr[0], &bad_wr);
-     
-		if (err) {
-			cerr << "failed to post send request" << endl;
-			return -1;
-		} else {
-			int num;
-			struct ibv_wc wc;
-			do {
-				num = ibv_poll_cq(cq, 1, &wc);
-				if (num < 0) {
-					cerr << "failed to poll cq" << endl;
-					return -1;
-				} else if (num) {
-					poll_cnt++;
-				}
-			} while (!num);
-			if (wc.status != IBV_WC_SUCCESS) {
-				cerr << "completion with error " << wc.status << endl;
-				return -1;
-			}
-		}
+	    auto start = std::chrono::high_resolution_clock::now();
+        #ifdef POST_ALL
+        assert(post_all(wr, sg_list) == 0);
+        #else
+        assert(post_pipeline(wr, sg_list) == 0);
+        #endif
         auto end = std::chrono::high_resolution_clock::now();
         double lat = std::chrono::duration_cast<std::chrono::microseconds>(end-start).count();
-        if(communication_mode == SEQ)
-        {
-			cout << "Sequentially ";
-        }
-        else
-        {
-			cout << "Randomly ";
-        }
-		cout << "send " << batch_size << " x " << io_size << " bytes data cost " << lat << " us " << endl;
+        data.push_back(lat);
 	}
+    to_file(data);
+    return 0;
+}
+
+void infiniband_odp::to_file(std::vector<double>& data)
+{
+    std::string file_name = std::to_string(local_info.mem_len) + "B_" + ((communication_mode == SEQ)?"SEQ":"RAND");
+    std::ofstream file(file_name);
+    for(auto lat:data)
+        file << lat << std::endl;
+    file.flush();
+    file.close();
 }
 
 void infiniband_odp::syn()
@@ -681,8 +796,9 @@ int main(int argc, char* argv[])
     opt.add<int>("batch", 'n', "batch size", false, 1, cmdline::range(1, 1024));
     opt.add<int>("gid", 'g', "gid index", false, 3);
     opt.add<int>("iteration", 'I', "Iteration", false, 1000, cmdline::range(1, 10000000));
-    opt.add<int>("mode", 'M', "Communication Mode", false, SEQ, cmdline::range(0, 2));
+    opt.add<int>("mode", 'M', "Communication Mode", false, SEQ, cmdline::range(0, 3));
     opt.add<int>("huge", 'H', "Huge Page", false, 0, cmdline::range(0,1));
+    opt.add<int>("memorytype", 'r', "using odp or registered memory", false, 0, cmdline::range(0,1));
     opt.parse_check(argc, argv);
     
     string device_name {opt.get<string>("device")};
@@ -696,13 +812,19 @@ int main(int argc, char* argv[])
     int iteration = opt.get<int>("iteration");
     int cm = opt.get<int>("mode");
     int huge_page = opt.get<int>("huge");
-    infiniband_odp device(device_name, server_name, ib_port, tcp_port, mem_size, io_size, batch_size, gid_index, iteration, cm, huge_page);
+    int memory_type = opt.get<int>("memorytype");
+    infiniband_odp device(device_name, server_name, ib_port, tcp_port, mem_size, io_size, batch_size, gid_index, iteration, cm, huge_page, memory_type);
     
+    cout << "memory info size:" << sizeof(memory_info) << endl; 
     device.init_device();
-	if(cm == ODP_ONLY)
+	if(cm == ODP_ONLY && memory_type == ODP)
 	{
 		device.prefetch_mr_test();
 	}
+    else if(cm == ASYNC_ODP_ONLY && memory_type == ODP)
+    {
+        device.async_prefetch_mr_test();
+    }
 	else
 	{
 		if (server_name.empty())
