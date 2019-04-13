@@ -1,0 +1,51 @@
+I/O多路复用：当任何一个文件描述符I/O就绪时进行通知
+如果都不可用：在有可用的文件描述符之前一直处于睡眠状态。
+唤醒：哪个文件描述符可用了？
+处理所有的IO就绪的文件描述符：没有阻塞
+重新开始
+
+select：
+int select(int n,fd_set *readfds,fd_set *writefds,fd_set *exceptfds,struct timeval *timeout);
+    n取读写和异常fd数量的最大值+1
+FD_CLR(int fd,fd_set *set);
+FD_ISSET(int fd,fd_set *set);
+FD_SET(int fd,fd_set *set);
+FD_ZERO(fd_set *set);
+
+pselect:
+int pselect(int n,fd_set *readfds,fd_set *writefds,fd_set *exceptfds,const struct timespec *timeout,const sigset_t *sigmask);
+FD_CLR(int fd,fd_set *set);
+FD_ISSET(int fd,fd_set *set);
+FD_SET(int fd,fd_set *set);
+FD_ZERO(fd_set *set);
+
+poll:
+int poll(struct pollfd *fds,nfds_t nfds,int timeout);
+struct pollfd{
+    int fd;
+    short events;
+    short revents;
+};
+events:POLLIN,POLLRDNORM,POLLRDBAND,POLLPRI,POLLOUT,POLLWRNORM,POLLBAND,POLLMSG
+revents:POLLER,POLLHUP,POLLNVAL
+
+select缺点：静态文件描述符集合，返回时会重新创建文件描述符集，因此每次调用都必须重新初始化，timeout参数会变化。
+poll优点：动态文件描述符数组，将输入和输出分开，支持无需改变数组就可以重新使用。
+
+EventPoll:
+int epoll_create1(int flags);
+flags:EPOLL_CLOEXEC   ---close_on_exec
+int epoll_ctl(int epfd,int op,int fd,struct epoll_event *event);
+struct epoll_event{
+      __u32 events;
+      union{
+        void *ptr;
+        int fd;
+        __u32 u32;
+        __u64 u64;
+     }data;
+};
+op:EPOLL_CTL_ADD,EPOLL_CTL_DEL,EPOLL_CTL_MOD
+events:EPOLLERR,EPOLLET,EPOLLHUP,EPOLLIN,EPOLLOUT,EPOLLPRI,EPOLLONESHOT
+
+int epoll_wait(int epfd,struct epoll_event *events,int maxevents,int timeout);
